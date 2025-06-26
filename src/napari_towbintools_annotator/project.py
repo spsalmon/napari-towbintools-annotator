@@ -1,8 +1,9 @@
 class Project:
-    def __init__(self, name: str):
+    def __init__(self, name: str, image_type: str = 'multichannel'):
         self.name = name
         self.data = {}
         self.annotations = {}
+        self.image_type = image_type
 
     def add_data(self, key: str, value):
         self.data[key] = value

@@ -6,3 +6,10 @@ visibility: public
 categories: ["Annotation", "Segmentation", "Acquisition"]
 contributions:
   commands:
+    - id: napari-towbintools-annotator.project_selector
+      title: Project Selector
+      python_name: napari_towbintools_annotator.project_selector:ProjectSelectorWidget
+
+  widgets:
+    - command: napari-towbintools-annotator.project_selector
+      display_name: Project Selector
