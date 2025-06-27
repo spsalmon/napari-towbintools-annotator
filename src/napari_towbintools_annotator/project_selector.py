@@ -7,13 +7,14 @@ import pandas as pd
 from magicgui.widgets import create_widget
 from napari.layers.points._points_constants import Mode
 from napari_guitils.gui_structures import TabSet, VHGroup
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import (
     QButtonGroup,
     QFileDialog,
     QLabel,
     QLineEdit,
     QTextEdit,
+    QCheckBox,
     QListWidget,
     QPushButton,
     QRadioButton,
@@ -21,9 +22,9 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QWidget,
 )
-
-from napari_guitils.gui_structures import TabSet, VHGroup
+from .project import Project
 import datetime
+import shutil
 
 class ProjectCreatorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
@@ -33,7 +34,7 @@ class ProjectCreatorWidget(QWidget):
         self.parent_widget = parent
 
         self.data_directories = []
-        self.annotations_directory = None
+        self.project_dir = []
 
         # creates the elements that will be used to create a new project, and are hidden until the button is clicked
         self.project_creation_layout = QVBoxLayout()
@@ -92,96 +93,161 @@ class ProjectCreatorWidget(QWidget):
         # dir selection
         self.dir_selection_layout = VHGroup("Directory Selection", orientation="G")
 
-        def create_dir_selector(parent, layout, button_label, connect_function=None):
+        def create_dir_selector(parent, button_label, dir_list=None, multiple=False):
+            dir_selector_widget = QWidget()
+            dir_selector_layout = QVBoxLayout()
+            buttons_layout = QHBoxLayout()
             dir_button = QPushButton(button_label)
-            dir_button.clicked.connect(
-                lambda: connect_function(parent)
-            )
-            return dir_button
         
-        def select_data_directory(parent):
-            dir_path = QFileDialog.getExistingDirectory(
-                parent, "Select Directory"
-            )
-            if dir_path:
-                parent.data_directories.append(dir_path)
-
-                # add a line edit to display the selected directory and a button to clear it
-                dir_label = QLabel(dir_path)
-                clear_button = QPushButton("Clear")
+            if multiple:
+                dir_display = QListWidget()
+                dir_display.setSelectionMode(QListWidget.MultiSelection)
+                remove_button = QPushButton("Remove Selected")
+                remove_button.clicked.connect(lambda: remove_selected_directories(dir_display, dir_list))
                 
-                # Create a horizontal layout to put label and clear button on the same line
-                dir_row_widget = QWidget()
-                dir_row_layout = QHBoxLayout(dir_row_widget)
-                dir_row_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for a cleaner look
-                dir_row_layout.addWidget(dir_label)
-                dir_row_layout.addWidget(clear_button)
+                buttons_layout.addWidget(dir_button)
+                buttons_layout.addWidget(remove_button)
+                dir_selector_layout.addLayout(buttons_layout)
+                dir_selector_layout.addWidget(dir_display)
                 
-                def clear_dir():
-                    if dir_path in parent.data_directories:
-                        parent.data_directories.remove(dir_path)
-                    parent.data_selection_layout.removeWidget(dir_row_widget)
-                    dir_row_widget.setParent(None)
-                    dir_row_widget.deleteLater()
-                clear_button.clicked.connect(clear_dir)
-                
-                parent.data_selection_layout.addWidget(dir_row_widget)
-                    
-                return dir_path
             else:
-                print("Directory selection cancelled.")
-                return ""
-            
-        def select_annotations_directory(parent):
-            dir_path = QFileDialog.getExistingDirectory(
-                parent, "Select Annotations Directory"
-            )
-            if dir_path:
-                self.annotations_directory = dir_path
+                dir_display = QLabel()
 
-                if not hasattr(parent, 'annotations_dir_label'):
-                    parent.annotations_dir_label = QLabel(dir_path)
-                    parent.dir_selection_layout.glayout.addWidget(parent.annotations_dir_label)
+                dir_selector_layout.addWidget(dir_button)
+                dir_selector_layout.addLayout(buttons_layout)
+                dir_selector_layout.addWidget(dir_display)
+
+            dir_button.clicked.connect(
+                lambda: add_directory_to_list(
+                    QFileDialog.getExistingDirectory(
+                        parent, "Select Directory", os.getcwd()
+                    ),
+                    dir_display,
+                    dir_list,
+                    multiple=multiple
+                )
+            )
+            
+            dir_selector_widget.setLayout(dir_selector_layout)
+            return dir_selector_widget
+        
+        def add_directory_to_list(dir_path, display_widget, data_list=None, multiple=False):
+            if dir_path and os.path.isdir(dir_path):
+                if isinstance(data_list, list):
+                    if multiple:
+                        # Append to the list if multiple directories are allowed
+                        data_list.append(dir_path)
+                    else:
+                        # Replace the single directory path
+                        data_list.clear()
+                        data_list.append(dir_path)
+
+                if isinstance(display_widget, QListWidget):
+                    display_widget.addItem(dir_path)
+                elif isinstance(display_widget, QLabel):
+                    display_widget.setText(dir_path)
                 else:
-                    parent.annotations_dir_label.setText(dir_path)
-                    
-                return dir_path
+                    print("Unsupported display widget type")
             else:
-                print("Directory selection cancelled.")
-                return ""
-            
+                print(f"Invalid directory path: {dir_path}")
+
+        def remove_selected_directories(display_widget, data_list):
+            if isinstance(display_widget, QListWidget):
+                for item in display_widget.selectedItems():
+                    display_widget.takeItem(display_widget.row(item))
+                    data_list.remove(item.text())
+
         # Wrap data_selection_layout in a QWidget before adding to another layout
-        self.data_selection_widget = QWidget()
-        self.data_selection_layout = QVBoxLayout(self.data_selection_widget)
-        self.data_dir_button = create_dir_selector(
-            self, self.dir_selection_layout, "Select Data Directory", select_data_directory
+        self.data_selection_widget = create_dir_selector(
+            self,
+            "Select Data Directory",
+            dir_list=self.data_directories,
+            multiple=True
         )
-        self.data_selection_layout.addWidget(self.data_dir_button)
-
-        self.annotations_dir_button = create_dir_selector(
-            self, self.dir_selection_layout, "Select Annotations Directory", select_annotations_directory
-        )
-
         self.dir_selection_layout.glayout.addWidget(self.data_selection_widget)
-        self.dir_selection_layout.glayout.addWidget(self.annotations_dir_button)
+
+        # Annotations directory selection
+        self.project_dir_selection_layout = create_dir_selector(
+            self,
+            "Select Project Directory",
+            dir_list=self.project_dir,
+            multiple=False
+        )
+        self.dir_selection_layout.glayout.addWidget(self.project_dir_selection_layout)
 
         self.project_creation_layout.addWidget(self.dir_selection_layout.gbox)
 
+        # specifying the options for classification project
+        self.classification_options_layout = VHGroup("Classification", orientation="G")
+        self.classes_layout = VHGroup("Classes", orientation="G")
+        # Widget to display and manage classes
+        self.classes_list = QListWidget()
+        self.classes_list.setSelectionMode(QListWidget.MultiSelection)
+
+        # Input for adding new class
+        self.class_input_layout = QHBoxLayout()
+        self.class_input = QLineEdit()
+        self.class_input.setPlaceholderText("Add new class...")
+        self.add_class_button = QPushButton("Add")
+        self.remove_class_button = QPushButton("Remove Selected")
+
+        self.class_input_layout.addWidget(self.class_input)
+        self.class_input_layout.addWidget(self.add_class_button)
+        self.class_input_layout.addWidget(self.remove_class_button)
+
+        # Add input layout above the list
+        self.classes_layout.glayout.addLayout(self.class_input_layout, 0, 0)
+
+        # Add class on button click or Enter
+        def add_class():
+            class_name = self.class_input.text().strip()
+            if class_name and not any(self.classes_list.item(i).text() == class_name for i in range(self.classes_list.count())):
+                self.classes_list.addItem(class_name)
+                self.class_input.clear()
+
+        self.add_class_button.clicked.connect(add_class)
+        self.class_input.returnPressed.connect(add_class)
+
+        # Remove selected classes
+        def remove_selected_classes():
+            for item in self.classes_list.selectedItems():
+                self.classes_list.takeItem(self.classes_list.row(item))
+
+        self.remove_class_button.clicked.connect(remove_selected_classes)
+        self.classes_list.setToolTip("Select classes for the classification project")
+        self.classes_layout.glayout.addWidget(self.classes_list)
+        self.classification_options_layout.glayout.addWidget(self.classes_layout.gbox)
+        self.project_creation_layout.addWidget(self.classification_options_layout.gbox)
+
+        # Show the classification options by default
+        self.classification_options_layout.gbox.setVisible(True)
+        self.project_type_selector.buttonClicked.connect(self.toggle_project_type_options)
+
         # create and cancel buttons
+        self.copy_data_checkbox = QCheckBox("Copy data to project directory")
         self.create_button = QPushButton("Create Project")
         self.cancel_button = QPushButton("Cancel")
 
         self.create_button.clicked.connect(self.create_project)
         self.cancel_button.clicked.connect(self.cancel_creation)
 
+        self.project_creation_layout.addWidget(self.copy_data_checkbox)
         self.project_creation_layout.addWidget(self.create_button)
         self.project_creation_layout.addWidget(self.cancel_button)
+
+
+    def toggle_project_type_options(self):
+        if self.project_type_classification.isChecked():
+            # Show classification options
+            self.classification_options_layout.gbox.setVisible(True)
+        else:
+            # Hide classification options
+            self.classification_options_layout.gbox.setVisible(False)
 
     def cancel_creation(self):
         """Cancel project creation and return to main view"""
         if self.parent_widget and hasattr(self.parent_widget, 'toggle_create_project'):
             # Use Qt's queued connection to avoid immediate widget destruction issues
-            from qtpy.QtCore import QTimer
             QTimer.singleShot(0, self.parent_widget.toggle_create_project)
 
     def create_project(self):
@@ -205,10 +271,50 @@ class ProjectCreatorWidget(QWidget):
             project_type = "keypoint"
         elif self.project_type_panoptic.isChecked():
             project_type = "panoptic"
-            
-        print(f"Creating project: {project_name}, Image type: {image_type}, Project type: {project_type}")
-        print(f"Data directories: {self.data_directories}")
-        print(f"Annotations directory: {self.annotations_directory}")
+
+        project_dir = os.path.join(
+            self.project_dir[0] if self.project_dir else "",
+            f"{project_name}"
+        )
+
+        os.makedirs(project_dir, exist_ok=True)
+
+        images_to_annotate = []
+        if self.copy_data_checkbox.isChecked():
+            local_data_dir = os.path.join(project_dir, "data")
+            os.makedirs(local_data_dir, exist_ok=True)
+            for i, data_dir in enumerate(self.data_directories):
+                if os.path.isdir(data_dir):
+                    base_name = os.path.basename(data_dir)
+                    dest_dir = os.path.join(local_data_dir, f"{base_name}_{i:02d}")
+                    if not os.path.exists(dest_dir):
+                        shutil.copytree(data_dir, dest_dir)
+
+                for d in os.listdir(data_dir):
+                    if os.path.isdir(os.path.join(data_dir, d)):
+                        images_to_annotate.extend(
+                            [os.path.join(data_dir, d, img) for img in os.listdir(os.path.join(data_dir, d))]
+                        )
+        else:
+            for data_dir in self.data_directories:
+                if os.path.isdir(data_dir):
+                    images_to_annotate.extend(
+                        [os.path.join(data_dir, img) for img in os.listdir(data_dir)]
+                    )
+
+        annotations_save_dir = os.path.join(project_dir, "annotations")
+        os.makedirs(annotations_save_dir, exist_ok=True)
+
+        project = Project(
+            name=project_name,
+            image_type=image_type,
+            project_type=project_type,
+            data_directories=self.data_directories,
+            project_dir=project_dir,
+            images_to_annotate=images_to_annotate,
+        )
+
+        print(project)
 
 class ProjectSelectorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
