@@ -285,22 +285,29 @@ class ProjectCreatorWidget(QWidget):
             os.makedirs(local_data_dir, exist_ok=True)
             for i, data_dir in enumerate(self.data_directories):
                 if os.path.isdir(data_dir):
-                    base_name = os.path.basename(data_dir)
-                    dest_dir = os.path.join(local_data_dir, f"{base_name}_{i:02d}")
+                    dest_dir = os.path.join(
+                        local_data_dir,
+                        data_dir.replace(":", "_").replace("\\", "_").replace("/", "_")
+                    )
+                    # remove any leading underscores from the destination directory
+                    dest_dir = dest_dir.lstrip("_")
+                    # remove any trailing underscores from the destination directory
+                    dest_dir = dest_dir.rstrip("_")
+
+                    dest_dir = os.path.join(local_data_dir, dest_dir)
+
                     if not os.path.exists(dest_dir):
                         shutil.copytree(data_dir, dest_dir)
 
-                for d in os.listdir(data_dir):
-                    if os.path.isdir(os.path.join(data_dir, d)):
-                        images_to_annotate.extend(
-                            [os.path.join(data_dir, d, img) for img in os.listdir(os.path.join(data_dir, d))]
-                        )
-        else:
-            for data_dir in self.data_directories:
-                if os.path.isdir(data_dir):
-                    images_to_annotate.extend(
-                        [os.path.join(data_dir, img) for img in os.listdir(data_dir)]
-                    )
+            local_data_directories = [os.path.join(local_data_dir, d) for d in os.listdir(local_data_dir) if os.path.isdir(os.path.join(local_data_dir, d))]
+            self.data_directories = local_data_directories
+
+
+        for data_dir in self.data_directories:
+            if os.path.isdir(data_dir):
+                images_to_annotate.extend(
+                    [os.path.join(data_dir, img) for img in os.listdir(data_dir)]
+                )
 
         annotations_save_dir = os.path.join(project_dir, "annotations")
         os.makedirs(annotations_save_dir, exist_ok=True)
