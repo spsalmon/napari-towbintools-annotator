@@ -26,6 +26,18 @@ from .project import Project
 import datetime
 import shutil
 
+def convert_path_to_dir_name(path):
+
+    path = path.replace(":", "_").replace("\\", "_").replace("/", "_")
+    # remove any leading underscores from the destination directory
+    path = path.lstrip("_")
+    path = path.lstrip("__")
+    # remove any trailing underscores from the destination directory
+    path = path.rstrip("_")
+
+    return path
+
+
 class ProjectCreatorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
         super().__init__(parent=parent)
@@ -279,69 +291,296 @@ class ProjectCreatorWidget(QWidget):
 
         os.makedirs(project_dir, exist_ok=True)
 
-        images_to_annotate = []
-        if self.copy_data_checkbox.isChecked():
-            local_data_dir = os.path.join(project_dir, "data")
-            os.makedirs(local_data_dir, exist_ok=True)
-            for i, data_dir in enumerate(self.data_directories):
-                if os.path.isdir(data_dir):
-                    dest_dir = os.path.join(
-                        local_data_dir,
-                        data_dir.replace(":", "_").replace("\\", "_").replace("/", "_")
-                    )
-                    # remove any leading underscores from the destination directory
-                    dest_dir = dest_dir.lstrip("_")
-                    # remove any trailing underscores from the destination directory
-                    dest_dir = dest_dir.rstrip("_")
-
-                    dest_dir = os.path.join(local_data_dir, dest_dir)
-
-                    if not os.path.exists(dest_dir):
-                        shutil.copytree(data_dir, dest_dir)
-
-            local_data_directories = [os.path.join(local_data_dir, d) for d in os.listdir(local_data_dir) if os.path.isdir(os.path.join(local_data_dir, d))]
-            self.data_directories = local_data_directories
-
-
-        for data_dir in self.data_directories:
-            if os.path.isdir(data_dir):
-                images_to_annotate.extend(
-                    [os.path.join(data_dir, img) for img in os.listdir(data_dir)]
-                )
-
         annotations_save_dir = os.path.join(project_dir, "annotations")
         os.makedirs(annotations_save_dir, exist_ok=True)
 
-        project = Project(
-            name=project_name,
-            image_type=image_type,
-            project_type=project_type,
-            data_directories=self.data_directories,
-            project_dir=project_dir,
-            images_to_annotate=images_to_annotate,
-        )
+        copy_data = self.copy_data_checkbox.isChecked()
+        if copy_data:
+            local_data_dir = os.path.join(project_dir, "data")
+            os.makedirs(local_data_dir, exist_ok=True)
 
-        print(project)
+        if project_type == "classification":
+            for i, data_dir in enumerate(self.data_directories):
+                if os.path.isdir(data_dir):
+                    d = convert_path_to_dir_name(data_dir)
+                    
+                    if copy_data:
+                        dest_dir = os.path.join(local_data_dir, d)
 
-class ProjectSelectorWidget(QWidget):
+                        if not os.path.exists(dest_dir):
+                            shutil.copytree(data_dir, dest_dir)
+
+            if copy_data:
+                local_data_directories = [os.path.join(local_data_dir, d) for d in os.listdir(local_data_dir) if os.path.isdir(os.path.join(local_data_dir, d))]
+                self.data_directories = local_data_directories
+
+            data_files = [os.path.join(d, f) for d in self.data_directories for f in os.listdir(d) if os.path.isfile(os.path.join(d, f))]
+            annotation_df = pd.DataFrame({
+                'ImagePath': data_files,
+                'Class': [None] * len(data_files),
+            })
+
+            annotation_df.to_csv(os.path.join(annotations_save_dir, "annotations.csv"), index=False)
+
+            project = Project(
+                name=project_name,
+                image_type=image_type,
+                project_type=project_type,
+                annotation_directories=[annotations_save_dir],
+                data_directories=self.data_directories,
+                classes=[self.classes_list.item(i).text() for i in range(self.classes_list.count())],
+                project_dir=project_dir,
+            )
+
+            project.save()
+
+        else:
+            for i, data_dir in enumerate(self.data_directories):
+                if os.path.isdir(data_dir):
+                    d = convert_path_to_dir_name(data_dir)
+                    annotations_dest_dir = os.path.join(annotations_save_dir, d)
+                    os.makedirs(annotations_dest_dir, exist_ok=True)
+                    
+                    if copy_data:
+                        dest_dir = os.path.join(local_data_dir, d)
+
+                        if not os.path.exists(dest_dir):
+                            shutil.copytree(data_dir, dest_dir)
+
+            annotation_directories = [os.path.join(annotations_save_dir, convert_path_to_dir_name(d)) for d in os.listdir(annotations_save_dir) if os.path.isdir(os.path.join(annotations_save_dir, d))]
+            if copy_data:
+                local_data_directories = [os.path.join(local_data_dir, d) for d in os.listdir(local_data_dir) if os.path.isdir(os.path.join(local_data_dir, d))]
+                self.data_directories = local_data_directories
+
+            project = Project(
+                name=project_name,
+                image_type=image_type,
+                project_type=project_type,
+                annotation_directories=annotation_directories,
+                data_directories=self.data_directories,
+                classes=[self.classes_list.item(i).text() for i in range(self.classes_list.count())],
+                project_dir=project_dir,
+            )
+
+            project.save()
+
+
+class ClassificationAnnotatorWidget(QWidget):
+    def __init__(self, napari_viewer, project, parent=None):
+        super().__init__(parent=parent)
+
+        self.viewer = napari_viewer
+        self.project = project
+
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
+
+        # Create a label to display the project name
+        self.project_label = QLabel(f"Project: {self.project.name}")
+        self.main_layout.addWidget(self.project_label)
+
+        self.annotation_df_path = os.path.join(self.project.annotation_directories[0], "annotations.csv")
+        self.annotation_df = pd.read_csv(self.annotation_df_path)
+
+        self.data_files = sorted(self.annotation_df['ImagePath'].tolist())
+
+        self.file_list_widget = QListWidget()
+        self.file_list_widget.addItems([os.path.basename(f) for f in self.data_files])
+
+        last_annotated_idx = -1
+        if "Class" in self.annotation_df.columns and not self.annotation_df.empty:
+            # Find all rows with non-empty, non-null Class values
+            valid_classes = self.annotation_df["Class"].dropna().astype(str).str.strip()
+            non_empty_mask = valid_classes != ""
+            
+            if non_empty_mask.any():
+                # Get the index of the last valid annotation
+                last_annotated_idx = valid_classes[non_empty_mask].index[-1] + 1
+
+        self.current_file_idx = last_annotated_idx if last_annotated_idx != -1 else 0
+        if self.current_file_idx >= len(self.data_files):
+            self.current_file_idx = 0
+
+        self.file_list_widget.setCurrentRow(self.current_file_idx)
+        self._load_file()
+        self.file_list_widget.itemClicked.connect(self.choose_file_from_list)
+
+        self.main_layout.addWidget(self.file_list_widget)
+
+        self.class_buttons_widget = QWidget()
+        self.class_buttons_layout = QVBoxLayout()
+        self.class_buttons_widget.setLayout(self.class_buttons_layout)
+
+        self.class_buttons = QButtonGroup()
+        for class_name in self.project.classes:
+            button = QPushButton(class_name)
+            self.class_buttons.addButton(button)
+            self.class_buttons_layout.addWidget(button)
+        self.class_buttons.buttonClicked.connect(self.assign_class)
+
+        self.main_layout.addWidget(self.class_buttons_widget)
+
+        self.ignore_button = QPushButton("Ignore")
+        self.ignore_button.clicked.connect(self.ignore_file)
+        self.main_layout.addWidget(self.ignore_button)
+
+
+    def _load_file(self):
+        # clear the current layers
+        self.viewer.layers.select_all()
+        self.viewer.layers.remove_selected()
+
+        if self.current_file_idx < 0 or self.current_file_idx >= len(self.data_files):
+            print("No valid file selected.")
+            return
+        data_file = self.data_files[self.current_file_idx]
+        class_name = self.annotation_df.loc[self.current_file_idx, 'Class']
+        
+        self.viewer.open(data_file, colormap="viridis", name=os.path.basename(data_file))
+
+        if not (pd.isna(class_name) or class_name == ""):
+            image_shape = np.shape(self.viewer.layers[-1].data)
+            box = np.array([[0, 0], [0, image_shape[1]], [image_shape[0], image_shape[1]], [image_shape[0], 0]])
+
+            self.viewer.add_shapes(
+                box,
+                shape_type='polygon',
+                features = {"class": class_name},
+                edge_width=3,
+                text={'string': 'class', 'size': 20, 'anchor': 'upper_left', 'color': 'white'},
+                face_color='transparent',
+                edge_color='red',
+                name=f"class name",
+            )
+
+
+
+    def choose_file_from_list(self):
+        self.current_file_idx = self.file_list_widget.currentRow()
+        self._load_file()
+
+    def next_file(self):
+        self.current_file_idx += 1
+        if self.current_file_idx >= len(self.data_files):
+            self.current_file_idx = 0
+        self.file_list_widget.setCurrentRow(self.current_file_idx)
+        self._load_file()
+
+    def assign_class(self, button):
+        if self.current_file_idx < 0 or self.current_file_idx >= len(self.data_files):
+            print("No valid file selected.")
+            return
+
+        class_name = button.text()
+        # Update the DataFrame with the assigned class
+        self.annotation_df.loc[self.current_file_idx, 'Class'] = class_name
+
+        # Save the updated DataFrame back to CSV
+        self.annotation_df.to_csv(self.annotation_df_path, index=False)
+        self.next_file()
+
+    def ignore_file(self):
+        if self.current_file_idx < 0 or self.current_file_idx >= len(self.data_files):
+            print("No valid file selected.")
+            return
+
+        # Remove the current file from the DataFrame
+        self.annotation_df.drop(index=self.current_file_idx, inplace=True)
+        # Reset the index of the DataFrame
+        self.annotation_df.reset_index(drop=True, inplace=True)
+
+        # Save the updated DataFrame back to CSV
+        self.annotation_df.to_csv(self.annotation_df_path, index=False)
+
+        # Remove the file from the list and update the current index
+        self.data_files.pop(self.current_file_idx)
+        self.file_list_widget.takeItem(self.current_file_idx)
+
+        if self.data_files:
+            self.current_file_idx = min(self.current_file_idx, len(self.data_files) - 1)
+            self.file_list_widget.setCurrentRow(self.current_file_idx)
+            self._load_file()
+        else:
+            print("No more files to annotate.")
+
+    # def populate_file_lists(self):
+    #     data_files = []
+    #     annotation_files = []
+
+    #     for data_dir in self.project.data_directories:
+    #         files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f))]
+    #         # remove ignored images
+    #         files = [f for f in files if os.path.basename(f) not in self.project.ignored_images]
+    #         data_files.extend(files)
+
+    #     for annotation_dir in self.project.annotation_directories:
+    #         files = [os.path.join(annotation_dir, f) for f in os.listdir(annotation_dir) if os.path.isfile(os.path.join(annotation_dir, f))]
+    #         annotation_files.extend(files)
+
+    #     data_files = sorted(data_files)
+    #     annotation_files = sorted(annotation_files)
+        
+    #     data_filename_with_directory = [os.sep.join(os.path.normpath(data_file).split(os.sep)[-2:]) for data_file in data_files]
+    #     annotation_filename_with_directory = [os.sep.join(os.path.normpath(annotation_file).split(os.sep)[-2:]) for annotation_file in annotation_files]
+
+    #     matched_files = {}
+    #     for data_file in data_filename_with_directory:
+    #         annotation_file = None
+    #         for ann_file in annotation_filename_with_directory:
+    #             if data_file == ann_file:
+    #                 annotation_file = ann_file
+    #                 break
+
+    #         matched_files[data_file] = annotation_file
+
+    #     self.data_files = data_files
+    #     self.annotation_files = annotation_files
+    #     self.matched_files = matched_files
+
+class TowbintoolsAnnotatorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
         super().__init__(parent=parent)
 
         self.viewer = napari_viewer
 
         self.main_layout = QVBoxLayout()
+
         self.setLayout(self.main_layout)
 
+        self.initial_button_widget = QWidget()
+        self.initial_button_layout = QVBoxLayout()
+        self.initial_button_widget.setLayout(self.initial_button_layout)
         self.create_button = QPushButton("Create Project")
 
         self.load_button = QPushButton("Load Project")
 
         self.project_creation_widget = None
 
-        self.main_layout.addWidget(self.create_button)
-        self.main_layout.addWidget(self.load_button)
+        self.initial_button_layout.addWidget(self.create_button)
+        self.initial_button_layout.addWidget(self.load_button)
+        self.main_layout.addWidget(self.initial_button_widget)
 
         self.create_button.clicked.connect(self.toggle_create_project)
+        self.load_button.clicked.connect(self.load_project)
+
+    def load_project(self):
+        """Load an existing project"""
+        project_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Load Project Directory",
+            os.getcwd(),
+        )
+
+        # Extract the directory path from the selected file
+        project = Project.load(project_dir)
+        print(f"Loaded project: {project.name}")
+
+        # Clear the main layout and set up the annotator widget
+        self.initial_button_widget.setVisible(False)
+        self.annotator_widget = create_annotator_widget(self.viewer, project, parent=self)
+        self.main_layout.insertWidget(0, self.annotator_widget)
+
+
 
     def toggle_create_project(self):
         if self.project_creation_widget is not None:
@@ -351,15 +590,21 @@ class ProjectSelectorWidget(QWidget):
             self.project_creation_widget = None
             
             # Show the main buttons again
-            self.create_button.setVisible(True)
-            self.load_button.setVisible(True)
+            self.initial_button_widget.setVisible(True)
         else:
             # Hide the main buttons
-            self.create_button.setVisible(False)
-            self.load_button.setVisible(False)
+            self.initial_button_widget.setVisible(False)
             
             # Create and insert the project creation widget at the same position
             self.project_creation_widget = ProjectCreatorWidget(self.viewer, parent=self)
             # Insert at index 0 to put it at the top, before the hidden buttons
             self.main_layout.insertWidget(0, self.project_creation_widget)
         
+def create_annotator_widget(napari_viewer, project, parent=None):
+    """
+    Create the annotator widget based on the project type.
+    """
+    if project.project_type == "classification":
+        return ClassificationAnnotatorWidget(napari_viewer, project, parent=parent)
+    else:
+        raise ValueError(f"Unsupported project type: {project.project_type}")
