@@ -262,6 +262,11 @@ class ProjectCreatorWidget(QWidget):
             # Use Qt's queued connection to avoid immediate widget destruction issues
             QTimer.singleShot(0, self.parent_widget.toggle_create_project)
 
+    def delete_widget(self):
+        self.parent_widget.main_layout.removeWidget(self)
+        self.parent_widget.project_creation_widget.hide()
+        self.parent_widget.project_creation_widget = None
+
     def create_project(self):
         """Create the project with the selected options"""
         project_name = self.project_name_input.text().strip()
@@ -317,22 +322,27 @@ class ProjectCreatorWidget(QWidget):
             data_files = [os.path.join(d, f) for d in self.data_directories for f in os.listdir(d) if os.path.isfile(os.path.join(d, f))]
             annotation_df = pd.DataFrame({
                 'ImagePath': data_files,
-                'Class': [None] * len(data_files),
+                'Class': [""] * len(data_files),
             })
 
-            annotation_df.to_csv(os.path.join(annotations_save_dir, "annotations.csv"), index=False)
+            annotation_df_path = os.path.join(annotations_save_dir, "annotations.csv")
+            annotation_df.to_csv(annotation_df_path, index=False)
 
             project = Project(
                 name=project_name,
                 image_type=image_type,
                 project_type=project_type,
                 annotation_directories=[annotations_save_dir],
+                annotation_df_path=annotation_df_path,
                 data_directories=self.data_directories,
                 classes=[self.classes_list.item(i).text() for i in range(self.classes_list.count())],
                 project_dir=project_dir,
             )
 
             project.save()
+
+            self.delete_widget()
+            self.parent_widget.load_project_from_path(project_dir)
 
         else:
             for i, data_dir in enumerate(self.data_directories):
@@ -379,8 +389,11 @@ class ClassificationAnnotatorWidget(QWidget):
         self.project_label = QLabel(f"Project: {self.project.name}")
         self.main_layout.addWidget(self.project_label)
 
-        self.annotation_df_path = os.path.join(self.project.annotation_directories[0], "annotations.csv")
+        self.annotation_df_path = project.annotation_df_path
         self.annotation_df = pd.read_csv(self.annotation_df_path)
+        # cast class and ImagePath columns to string to avoid warnings
+        self.annotation_df['Class'] = self.annotation_df['Class'].astype(str)
+        self.annotation_df['ImagePath'] = self.annotation_df['ImagePath'].astype(str)
 
         self.data_files = sorted(self.annotation_df['ImagePath'].tolist())
 
@@ -453,8 +466,6 @@ class ClassificationAnnotatorWidget(QWidget):
                 name=f"class name",
             )
 
-
-
     def choose_file_from_list(self):
         self.current_file_idx = self.file_list_widget.currentRow()
         self._load_file()
@@ -503,40 +514,6 @@ class ClassificationAnnotatorWidget(QWidget):
         else:
             print("No more files to annotate.")
 
-    # def populate_file_lists(self):
-    #     data_files = []
-    #     annotation_files = []
-
-    #     for data_dir in self.project.data_directories:
-    #         files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f))]
-    #         # remove ignored images
-    #         files = [f for f in files if os.path.basename(f) not in self.project.ignored_images]
-    #         data_files.extend(files)
-
-    #     for annotation_dir in self.project.annotation_directories:
-    #         files = [os.path.join(annotation_dir, f) for f in os.listdir(annotation_dir) if os.path.isfile(os.path.join(annotation_dir, f))]
-    #         annotation_files.extend(files)
-
-    #     data_files = sorted(data_files)
-    #     annotation_files = sorted(annotation_files)
-        
-    #     data_filename_with_directory = [os.sep.join(os.path.normpath(data_file).split(os.sep)[-2:]) for data_file in data_files]
-    #     annotation_filename_with_directory = [os.sep.join(os.path.normpath(annotation_file).split(os.sep)[-2:]) for annotation_file in annotation_files]
-
-    #     matched_files = {}
-    #     for data_file in data_filename_with_directory:
-    #         annotation_file = None
-    #         for ann_file in annotation_filename_with_directory:
-    #             if data_file == ann_file:
-    #                 annotation_file = ann_file
-    #                 break
-
-    #         matched_files[data_file] = annotation_file
-
-    #     self.data_files = data_files
-    #     self.annotation_files = annotation_files
-    #     self.matched_files = matched_files
-
 class TowbintoolsAnnotatorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
         super().__init__(parent=parent)
@@ -572,6 +549,14 @@ class TowbintoolsAnnotatorWidget(QWidget):
         )
 
         # Extract the directory path from the selected file
+        self.load_project_from_path(project_dir)
+
+    def load_project_from_path(self, project_dir):
+        """Load a project from a given directory path"""
+        if not os.path.isdir(project_dir):
+            print(f"Invalid project directory: {project_dir}")
+            return
+
         project = Project.load(project_dir)
         print(f"Loaded project: {project.name}")
 

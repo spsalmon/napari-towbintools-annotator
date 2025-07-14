@@ -1,0 +1,12 @@
+annotation_df_path: 20250714_project\annotations\annotations.csv
+annotation_directories:
+- 20250714_project\annotations
+classes:
+- kkkk
+data_directories:
+- //izbkingston/towbin.data/shared/spsalmon/annotator_test_data/classification
+ignored_images: []
+image_type: multichannel
+name: 20250714_project
+project_dir: 20250714_project
+project_type: classification

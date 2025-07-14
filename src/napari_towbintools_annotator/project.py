@@ -1,13 +1,16 @@
 import yaml
+import os
+import pandas as pd
 
 class Project:
-    def __init__(self, name: str, image_type: str, project_type: str, annotation_directories: list,  data_directories: list, project_dir: str, classes: list = [], ignored_images: list = []):
+    def __init__(self, name: str, image_type: str, project_type: str, annotation_directories: list,  data_directories: list, project_dir: str, annotation_df_path: str, classes: list = [], ignored_images: list = []):
         self.name = name
         self.image_type = image_type
         self.project_type = project_type
         self.annotation_directories = annotation_directories
         self.data_directories = data_directories
         self.project_dir = project_dir
+        self.annotation_df_path = annotation_df_path
 
         if project_type == "classification" and not classes:
             raise ValueError("Classes must be provided for classification projects.")
@@ -36,6 +39,7 @@ class Project:
             'image_type': self.image_type,
             'project_type': self.project_type,
             'annotation_directories': self.annotation_directories,
+            'annotation_df_path': self.annotation_df_path,
             'data_directories': self.data_directories,
             'project_dir': self.project_dir,
             'ignored_images': self.ignored_images,
@@ -60,6 +64,7 @@ class Project:
                 image_type=project_data['image_type'],
                 project_type=project_data['project_type'],
                 annotation_directories=project_data['annotation_directories'],
+                annotation_df_path=project_data['annotation_df_path'],
                 data_directories=project_data['data_directories'],
                 project_dir=project_dir,
                 classes=project_data.get('classes', []),
