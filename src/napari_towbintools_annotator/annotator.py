@@ -25,6 +25,7 @@ from qtpy.QtWidgets import (
 from .project import Project
 import datetime
 import shutil
+from natsort import natsorted
 
 def convert_path_to_dir_name(path):
 
@@ -395,7 +396,7 @@ class ClassificationAnnotatorWidget(QWidget):
         self.annotation_df['Class'] = self.annotation_df['Class'].astype(str)
         self.annotation_df['ImagePath'] = self.annotation_df['ImagePath'].astype(str)
 
-        self.data_files = sorted(self.annotation_df['ImagePath'].tolist())
+        self.data_files = natsorted(self.annotation_df['ImagePath'].tolist())
 
         self.file_list_widget = QListWidget()
         self.file_list_widget.addItems([os.path.basename(f) for f in self.data_files])
@@ -451,7 +452,7 @@ class ClassificationAnnotatorWidget(QWidget):
         
         self.viewer.open(data_file, colormap="viridis", name=os.path.basename(data_file))
 
-        if not (pd.isna(class_name) or class_name == ""):
+        if not (pd.isna(class_name) or class_name == "" or class_name == "nan"):
             image_shape = np.shape(self.viewer.layers[-1].data)
             box = np.array([[0, 0], [0, image_shape[1]], [image_shape[0], image_shape[1]], [image_shape[0], 0]])
 
