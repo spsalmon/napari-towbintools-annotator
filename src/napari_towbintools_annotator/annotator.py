@@ -462,7 +462,15 @@ class ClassificationAnnotatorWidget(QWidget):
             "ImagePath"
         ].astype(str)
 
-        self.data_files = natsorted(self.annotation_df["ImagePath"].tolist())
+        # sort the dataframe using natsort
+        self.annotation_df = self.annotation_df.iloc[
+            natsorted(
+                self.annotation_df.index,
+                key=lambda i: self.annotation_df["ImagePath"][i],
+            )
+        ]
+
+        self.data_files = self.annotation_df["ImagePath"].tolist()
 
         self.file_list_widget = QListWidget()
         self.file_list_widget.addItems(
