@@ -22,6 +22,7 @@ from qtpy.QtWidgets import (
 )
 
 from .project import Project
+from pathlib import Path
 
 
 def convert_path_to_dir_name(path):
@@ -202,7 +203,7 @@ class ProjectCreatorWidget(QWidget):
         # Annotations directory selection
         self.project_dir_selection_layout = create_dir_selector(
             self,
-            "Select Project Directory",
+            "Select Storage Directory",
             dir_list=self.project_dir,
             multiple=False,
         )
@@ -327,7 +328,7 @@ class ProjectCreatorWidget(QWidget):
             project_type = "panoptic"
 
         project_dir = os.path.join(
-            self.project_dir[0] if self.project_dir else "", f"{project_name}"
+            self.project_dir[0] if self.project_dir else Path.home(), f"{project_name}"
         )
 
         os.makedirs(project_dir, exist_ok=True)
@@ -365,10 +366,12 @@ class ProjectCreatorWidget(QWidget):
                 for f in os.listdir(d)
                 if os.path.isfile(os.path.join(d, f))
             ]
+
+            data_files = natsorted(data_files)
             annotation_df = pd.DataFrame(
                 {
                     "ImagePath": data_files,
-                    "Class": [""] * len(data_files),
+                    "Class": [np.nan] * len(data_files),
                 }
             )
 
@@ -456,19 +459,12 @@ class ClassificationAnnotatorWidget(QWidget):
 
         self.annotation_df_path = project.annotation_df_path
         self.annotation_df = pd.read_csv(self.annotation_df_path)
-        # cast class and ImagePath columns to string to avoid warnings
-        self.annotation_df["Class"] = self.annotation_df["Class"].astype(str)
+
         self.annotation_df["ImagePath"] = self.annotation_df[
             "ImagePath"
         ].astype(str)
 
-        # sort the dataframe using natsort
-        self.annotation_df = self.annotation_df.iloc[
-            natsorted(
-                self.annotation_df.index,
-                key=lambda i: self.annotation_df["ImagePath"][i],
-            )
-        ]
+        print(f'Loaded annotation df: {self.annotation_df}')
 
         self.data_files = self.annotation_df["ImagePath"].tolist()
 
@@ -486,7 +482,7 @@ class ClassificationAnnotatorWidget(QWidget):
             valid_classes = (
                 self.annotation_df["Class"].dropna().astype(str).str.strip()
             )
-            non_empty_mask = valid_classes != ""
+            non_empty_mask = (valid_classes != "") & (valid_classes != "nan")
 
             if non_empty_mask.any():
                 # Get the index of the last valid annotation
@@ -497,6 +493,7 @@ class ClassificationAnnotatorWidget(QWidget):
         self.current_file_idx = (
             last_annotated_idx if last_annotated_idx != -1 else 0
         )
+        
         if self.current_file_idx >= len(self.data_files):
             self.current_file_idx = 0
 
