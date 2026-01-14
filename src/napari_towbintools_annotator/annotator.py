@@ -384,8 +384,8 @@ class ProjectCreatorWidget(QWidget):
                 name=project_name,
                 image_type=image_type,
                 project_type=project_type,
-                annotation_directories=[annotations_save_dir],
-                annotation_df_path=annotation_df_path,
+                annotation_directories=["annotations"],
+                annotation_df_path=os.path.relpath(annotation_df_path, project_dir),
                 data_directories=self.data_directories,
                 classes=[
                     self.classes_list.item(i).text()
@@ -419,6 +419,12 @@ class ProjectCreatorWidget(QWidget):
                 for d in os.listdir(annotations_save_dir)
                 if os.path.isdir(os.path.join(annotations_save_dir, d))
             ]
+
+            annotation_directories = [
+                os.path.relpath(dir_path, project_dir)
+                for dir_path in annotation_directories
+            ]
+
             if copy_data:
                 local_data_directories = [
                     os.path.join(local_data_dir, d)
@@ -457,7 +463,10 @@ class ClassificationAnnotatorWidget(QWidget):
         self.project_label = QLabel(f"Project: {self.project.name}")
         self.main_layout.addWidget(self.project_label)
 
-        self.annotation_df_path = project.annotation_df_path
+        self.annotation_df_path = os.path.join(
+            project.project_dir, project.annotation_df_path
+        )
+        
         self.annotation_df = pd.read_csv(self.annotation_df_path)
 
         self.annotation_df["ImagePath"] = self.annotation_df[
@@ -493,7 +502,7 @@ class ClassificationAnnotatorWidget(QWidget):
         self.current_file_idx = (
             last_annotated_idx if last_annotated_idx != -1 else 0
         )
-        
+
         if self.current_file_idx >= len(self.data_files):
             self.current_file_idx = 0
 
