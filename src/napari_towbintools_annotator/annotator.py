@@ -499,6 +499,8 @@ class ClassificationAnnotatorWidget(QWidget):
                     valid_classes[non_empty_mask].index[-1] + 1
                 )
 
+        # cast the class column to string to avoid issues with nan values
+        self.annotation_df["Class"] = self.annotation_df["Class"].astype(str)
         self.current_file_idx = (
             last_annotated_idx if last_annotated_idx != -1 else 0
         )
