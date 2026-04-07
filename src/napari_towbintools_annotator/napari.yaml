@@ -6,10 +6,10 @@ visibility: public
 categories: ["Annotation", "Segmentation", "Acquisition"]
 contributions:
   commands:
-    - id: napari-towbintools-annotator.annotator
+    - id: napari-towbintools-annotator.project_creator
       title: Towbintools Annotator
-      python_name: napari_towbintools_annotator.annotator:TowbintoolsAnnotatorWidget
+      python_name: napari_towbintools_annotator.project_creator:TowbintoolsAnnotatorWidget
 
   widgets:
-    - command: napari-towbintools-annotator.annotator
+    - command: napari-towbintools-annotator.project_creator
       display_name: Towbintools Annotator
