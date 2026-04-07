@@ -1,5 +1,6 @@
 import yaml
-
+import os
+from pathlib import Path
 
 class Project:
     def __init__(
@@ -46,6 +47,9 @@ class Project:
         return self.annotations.get(key)
 
     def save(self):
+
+        output_file = f"{self.project_dir}/project.yaml"
+
         project_data = {
             "name": self.name,
             "image_type": self.image_type,
@@ -58,7 +62,7 @@ class Project:
             "classes": self.classes,
         }
 
-        with open(f"{self.project_dir}/project.yaml", "w") as file:
+        with open(output_file, "w") as file:
             yaml.dump(project_data, file)
 
     @classmethod
