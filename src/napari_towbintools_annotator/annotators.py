@@ -249,6 +249,7 @@ class ClassificationAnnotatorWidget(QWidget):
                 self._mask_layer.data = _read_labels(mask_path)
                 self._mask_layer.name = f"mask_{os.path.basename(mask_path)}"
 
+        self.viewer.reset_view()
         self._update_class_display(self.current_file_idx)
 
     def choose_file_from_list(self):
