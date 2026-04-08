@@ -20,6 +20,7 @@ from qtpy.QtWidgets import QListWidget
 from qtpy.QtWidgets import QMessageBox
 from qtpy.QtWidgets import QPushButton
 from qtpy.QtWidgets import QRadioButton
+from qtpy.QtWidgets import QScrollArea
 from qtpy.QtWidgets import QVBoxLayout
 from qtpy.QtWidgets import QWidget
 
@@ -58,8 +59,21 @@ class TowbintoolsAnnotatorWidget(QWidget):
 
         self.viewer = napari_viewer
 
+        # Outer layout holds only the scroll area.
+        outer_layout = QVBoxLayout()
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(outer_layout)
+
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setFrameShape(QScrollArea.NoFrame)
+        outer_layout.addWidget(self._scroll_area)
+
+        # Inner container is what everything else gets added to.
+        self._inner = QWidget()
         self.main_layout = QVBoxLayout()
-        self.setLayout(self.main_layout)
+        self._inner.setLayout(self.main_layout)
+        self._scroll_area.setWidget(self._inner)
 
         self.initial_button_widget = QWidget()
         self.initial_button_layout = QVBoxLayout()
