@@ -36,6 +36,36 @@ def convert_path_to_dir_name(path):
     return path
 
 
+def scan_panoptic_files(data_directories, mask_directories):
+    """Scan reference and segmentation directories for a panoptic project.
+
+    Returns ``(reference_files, segmentation_files)`` as natsorted absolute
+    paths. Raises ``ValueError`` if the counts do not match.
+    """
+    reference_files = natsorted(
+        [
+            os.path.join(d, f)
+            for d in data_directories
+            for f in os.listdir(d)
+            if os.path.isfile(os.path.join(d, f))
+        ]
+    )
+    segmentation_files = natsorted(
+        [
+            os.path.join(d, f)
+            for d in mask_directories
+            for f in os.listdir(d)
+            if os.path.isfile(os.path.join(d, f))
+        ]
+    )
+    if len(reference_files) != len(segmentation_files):
+        raise ValueError(
+            f"File count mismatch: {len(reference_files)} reference files vs "
+            f"{len(segmentation_files)} segmentation files."
+        )
+    return reference_files, segmentation_files
+
+
 class ProjectCreationWorker(QThread):
     status = Signal(str)
     finished = Signal(str)  # emits project_dir on success

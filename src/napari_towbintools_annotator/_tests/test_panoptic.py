@@ -176,3 +176,32 @@ def test_points_to_rows_skips_background_label():
         points, colors, label_data, {0: (1, 0, 0, 1)}, {0: "a"}
     )
     assert rows == [{"Label": 5, "ClassID": 0, "Class": "a"}]
+
+
+from napari_towbintools_annotator.project_creator import scan_panoptic_files
+
+
+def test_scan_panoptic_files_matches(tmp_path):
+    ref = tmp_path / "ref"
+    seg = tmp_path / "seg"
+    ref.mkdir()
+    seg.mkdir()
+    for name in ("a.tif", "b.tif"):
+        (ref / name).write_text("x")
+        (seg / name).write_text("x")
+    refs, segs = scan_panoptic_files([str(ref)], [str(seg)])
+    assert len(refs) == 2
+    assert len(segs) == 2
+    assert all(r.endswith(".tif") for r in refs)
+
+
+def test_scan_panoptic_files_mismatch_raises(tmp_path):
+    ref = tmp_path / "ref"
+    seg = tmp_path / "seg"
+    ref.mkdir()
+    seg.mkdir()
+    (ref / "a.tif").write_text("x")
+    (seg / "a.tif").write_text("x")
+    (seg / "b.tif").write_text("x")
+    with pytest.raises(ValueError):
+        scan_panoptic_files([str(ref)], [str(seg)])
