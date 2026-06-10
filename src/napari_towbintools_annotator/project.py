@@ -43,6 +43,7 @@ class Project:
 
         dispatch = {
             "classification": ClassificationProject.load,
+            "panoptic": PanopticProject.load,
         }
 
         if project_type not in dispatch:
@@ -134,5 +135,77 @@ class ClassificationProject(Project):
             classes=project_data.get("classes", []),
             mask_directories=project_data.get("mask_directories", []),
             display_mode=project_data.get("display_mode", "image"),
+            ignored_images=project_data.get("ignored_images", []),
+        )
+
+
+class PanopticProject(Project):
+    def __init__(
+        self,
+        name: str,
+        image_type: str,
+        annotation_directories: list,
+        annotation_df_path: str,
+        project_dir: str,
+        classes: list,
+        data_directories: list = None,
+        mask_directories: list = None,
+        ignored_images: list = None,
+    ):
+        if not classes:
+            raise ValueError(
+                "Classes must be provided for panoptic projects."
+            )
+        if not data_directories:
+            raise ValueError(
+                "data_directories must be provided for panoptic projects."
+            )
+        if not mask_directories:
+            raise ValueError(
+                "mask_directories must be provided for panoptic projects."
+            )
+
+        super().__init__(
+            name=name,
+            image_type=image_type,
+            project_type="panoptic",
+            annotation_directories=annotation_directories,
+            data_directories=data_directories or [],
+            project_dir=project_dir,
+            ignored_images=ignored_images,
+        )
+
+        self.annotation_df_path = annotation_df_path
+        self.classes = classes
+        self.mask_directories = mask_directories or []
+
+    def save(self):
+        project_data = {
+            "name": self.name,
+            "image_type": self.image_type,
+            "project_type": self.project_type,
+            "annotation_directories": self.annotation_directories,
+            "annotation_df_path": self.annotation_df_path,
+            "data_directories": self.data_directories,
+            "project_dir": self.project_dir,
+            "ignored_images": self.ignored_images,
+            "classes": self.classes,
+            "mask_directories": self.mask_directories,
+        }
+
+        with open(f"{self.project_dir}/project.yaml", "w") as file:
+            yaml.dump(project_data, file)
+
+    @classmethod
+    def load(cls, project_dir: str, project_data: dict):
+        return cls(
+            name=project_data["name"],
+            image_type=project_data["image_type"],
+            annotation_directories=project_data["annotation_directories"],
+            annotation_df_path=project_data["annotation_df_path"],
+            data_directories=project_data["data_directories"],
+            project_dir=project_dir,
+            classes=project_data.get("classes", []),
+            mask_directories=project_data.get("mask_directories", []),
             ignored_images=project_data.get("ignored_images", []),
         )
