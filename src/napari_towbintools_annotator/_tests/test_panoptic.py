@@ -164,3 +164,15 @@ def test_rows_to_points_skips_missing_label():
     label_data = np.zeros((10, 10), dtype=int)
     df = pd.DataFrame([{"Label": 99, "ClassID": 0, "Class": "a"}])
     assert rows_to_points(df, label_data, {0: (1, 0, 0, 1)}) == []
+
+
+def test_points_to_rows_skips_background_label():
+    label_data = np.zeros((10, 10), dtype=int)
+    label_data[2:4, 2:4] = 5
+    # First point lands on background (label 0), second on instance 5.
+    points = np.array([[8, 8], [3, 3]])
+    colors = np.array([(1, 0, 0, 1), (1, 0, 0, 1)], dtype=float)
+    rows = points_to_rows(
+        points, colors, label_data, {0: (1, 0, 0, 1)}, {0: "a"}
+    )
+    assert rows == [{"Label": 5, "ClassID": 0, "Class": "a"}]

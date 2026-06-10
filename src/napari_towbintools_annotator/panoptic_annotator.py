@@ -32,6 +32,9 @@ def points_to_rows(
         if any(i < 0 or i >= s for i, s in zip(index, shape)):
             continue
         label_value = int(label_data[index])
+        # Background (label 0) is not an annotatable instance; skip it.
+        if label_value == 0:
+            continue
         class_id = nearest_class_id(color, id_to_color)
         class_name = id_to_name.get(class_id, "unknown")
         if plane_axis is not None:
