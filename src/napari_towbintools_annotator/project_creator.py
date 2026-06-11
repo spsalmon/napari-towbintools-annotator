@@ -713,9 +713,16 @@ class ProjectCreatorWidget(QWidget):
         if copy_data:
             local_data_dir = os.path.join(project_dir, "data")
             os.makedirs(local_data_dir, exist_ok=True)
-            status.emit("Copying data...")
+            status.emit("Copying reference data...")
             data_directories = self._copy_data_directories_static(
                 data_directories, local_data_dir, status
+            )
+
+            local_seg_dir = os.path.join(project_dir, "segmentations")
+            os.makedirs(local_seg_dir, exist_ok=True)
+            status.emit("Copying segmentation data...")
+            mask_directories = self._copy_data_directories_static(
+                mask_directories, local_seg_dir, status
             )
 
         status.emit("Scanning files...")

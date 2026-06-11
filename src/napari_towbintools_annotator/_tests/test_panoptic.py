@@ -205,3 +205,40 @@ def test_scan_panoptic_files_mismatch_raises(tmp_path):
     (seg / "b.tif").write_text("x")
     with pytest.raises(ValueError):
         scan_panoptic_files([str(ref)], [str(seg)])
+
+
+def test_run_panoptic_creation_copies_segmentations(tmp_path):
+    from napari_towbintools_annotator.project_creator import ProjectCreatorWidget
+
+    src_ref = tmp_path / "src_ref"
+    src_seg = tmp_path / "src_seg"
+    src_ref.mkdir()
+    src_seg.mkdir()
+    (src_ref / "a.tif").write_text("x")
+    (src_seg / "a.tif").write_text("x")
+    project_dir = tmp_path / "proj"
+
+    class _Status:
+        def emit(self, *args, **kwargs):
+            pass
+
+    # Call the unbound method without running QWidget.__init__.
+    widget = ProjectCreatorWidget.__new__(ProjectCreatorWidget)
+    ProjectCreatorWidget._run_panoptic_creation(
+        widget,
+        "proj",
+        "multichannel",
+        str(project_dir),
+        [str(src_ref)],
+        [str(src_seg)],
+        ["a"],
+        True,  # copy_data
+        _Status(),
+    )
+
+    master = pd.read_csv(project_dir / "annotations" / "annotations.csv")
+    assert len(master) == 1
+    seg_path = str(master.loc[0, "Segmentation"])
+    ref_path = str(master.loc[0, "Reference"])
+    assert str(project_dir) in seg_path
+    assert str(project_dir) in ref_path
