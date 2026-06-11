@@ -5,36 +5,24 @@ import imageio
 import pandas as pd
 import tifffile
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QButtonGroup
-from qtpy.QtWidgets import QLabel
-from qtpy.QtWidgets import QListWidget
-from qtpy.QtWidgets import QListWidgetItem
-from qtpy.QtWidgets import QPushButton
-from qtpy.QtWidgets import QVBoxLayout
-from qtpy.QtWidgets import QWidget
+from qtpy.QtWidgets import (
+    QButtonGroup,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
+from .colors import CLASS_PALETTE as _CLASS_PALETTE
 from .project import ClassificationProject
-
-# Palette of visually distinct colors for class highlighting.
-# Expressed as (background_hex, is_dark) — is_dark drives text color choice.
-_CLASS_PALETTE = [
-    "#4C72B0",
-    "#DD8452",
-    "#55A868",
-    "#C44E52",
-    "#8172B3",
-    "#937860",
-    "#DA8BC3",
-    "#8C8C8C",
-    "#CCB974",
-    "#64B5CD",
-]
 
 
 def _read_image(path):
     try:
         return tifffile.imread(path)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return imageio.imread(path)
 
 
