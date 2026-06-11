@@ -300,3 +300,68 @@ def test_panoptic_widget_load_and_save(tmp_path):
 
     master = pd.read_csv(annotations_dir / "annotations.csv")
     assert str(master.loc[0, "Annotation"]) == str(out_csv)
+
+
+def test_panoptic_widget_save_empty_then_reload(tmp_path):
+    """Saving with no points must not crash on subsequent reload (regression)."""
+    import napari
+
+    project_dir = tmp_path / "proj"
+    annotations_dir = project_dir / "annotations"
+    annotations_dir.mkdir(parents=True)
+
+    reference = np.zeros((10, 10), dtype=np.uint8)
+    segmentation = np.zeros((10, 10), dtype=np.uint16)
+    segmentation[2:4, 2:4] = 5
+    ref_path = tmp_path / "img.tif"
+    seg_path = tmp_path / "img_seg.tif"
+    tifffile.imwrite(str(ref_path), reference)
+    tifffile.imwrite(str(seg_path), segmentation)
+
+    pd.DataFrame(
+        {
+            "Reference": [str(ref_path)],
+            "Segmentation": [str(seg_path)],
+            "Annotation": [""],
+        }
+    ).to_csv(annotations_dir / "annotations.csv", index=False)
+
+    project = PanopticProject(
+        name="p",
+        image_type="multichannel",
+        annotation_directories=["annotations"],
+        annotation_df_path="annotations/annotations.csv",
+        data_directories=[str(tmp_path)],
+        mask_directories=[str(tmp_path)],
+        classes=["a", "b"],
+        project_dir=str(project_dir),
+    )
+
+    viewer = napari.Viewer(show=False)
+    try:
+        widget = PanopticAnnotatorWidget(viewer, project)
+
+        # Save with NO annotation points placed.
+        widget.save_annotations()
+        widget._save_master_sync()
+
+        out_csv = annotations_dir / "img.csv"
+        assert out_csv.exists(), "per-image CSV should be written even with no points"
+
+        saved = pd.read_csv(out_csv)
+        # Header columns must be present (not an empty/headerless file).
+        assert list(saved.columns) == ["Label", "ClassID", "Class"]
+        assert len(saved) == 0
+
+        # Master index must record the annotation path.
+        master = pd.read_csv(annotations_dir / "annotations.csv")
+        assert str(master.loc[0, "Annotation"]) == str(out_csv)
+
+        # Reload the same file — must NOT raise EmptyDataError.
+        widget._load_file()
+
+        # After reload the annotation layer must be empty.
+        assert widget._annotation_layer is not None
+        assert len(widget._annotation_layer.data) == 0
+    finally:
+        viewer.close()

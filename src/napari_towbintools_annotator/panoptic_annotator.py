@@ -299,7 +299,12 @@ class PanopticAnnotatorWidget(QWidget):
         self._update_point_color()
 
     def _replay_annotations(self, csv_path):
-        df = pd.read_csv(csv_path)
+        try:
+            df = pd.read_csv(csv_path)
+        except pd.errors.EmptyDataError:
+            return
+        if df.empty:
+            return
         label_data = np.asarray(self._segmentation_layer.data)
         placements = rows_to_points(
             df, label_data, self.class_id_to_color, self._plane_axis()
@@ -365,6 +370,7 @@ class PanopticAnnotatorWidget(QWidget):
     def save_annotations(self):
         if self._annotation_layer is None or self._segmentation_layer is None:
             return
+        plane_axis = self._plane_axis()
         label_data = np.asarray(self._segmentation_layer.data)
         rows = points_to_rows(
             np.asarray(self._annotation_layer.data),
@@ -372,9 +378,13 @@ class PanopticAnnotatorWidget(QWidget):
             label_data,
             self.class_id_to_color,
             self.class_id_to_name,
-            self._plane_axis(),
+            plane_axis,
         )
-        df = pd.DataFrame(rows)
+        columns = (
+            ([plane_axis] if plane_axis is not None else [])
+            + ["Label", "ClassID", "Class"]
+        )
+        df = pd.DataFrame(rows, columns=columns)
 
         reference = self.annotation_df.loc[self.current_file_idx, "Reference"]
         name = os.path.splitext(os.path.basename(reference))[0]
