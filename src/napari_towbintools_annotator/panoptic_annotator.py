@@ -1,23 +1,24 @@
+import contextlib
 import os
 import threading
 
 import numpy as np
-from skimage.measure import regionprops
-
 import pandas as pd
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QButtonGroup
-from qtpy.QtWidgets import QHBoxLayout
-from qtpy.QtWidgets import QLabel
-from qtpy.QtWidgets import QListWidget
-from qtpy.QtWidgets import QListWidgetItem
-from qtpy.QtWidgets import QPushButton
-from qtpy.QtWidgets import QRadioButton
-from qtpy.QtWidgets import QVBoxLayout
-from qtpy.QtWidgets import QWidget
+from qtpy.QtWidgets import (
+    QButtonGroup,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QRadioButton,
+    QVBoxLayout,
+    QWidget,
+)
+from skimage.measure import regionprops
 
-from .colors import CLASS_PALETTE
-from .colors import hex_to_rgba_float
+from .colors import CLASS_PALETTE, hex_to_rgba_float
 
 
 def nearest_class_id(color, id_to_color):
@@ -43,11 +44,11 @@ def points_to_rows(
     """
     rows = []
     shape = label_data.shape
-    for point, color in zip(points, face_colors):
+    for point, color in zip(points, face_colors, strict=False):
         index = tuple(int(round(coord)) for coord in point)
         if len(index) != len(shape):
             continue
-        if any(i < 0 or i >= s for i, s in zip(index, shape)):
+        if any(i < 0 or i >= s for i, s in zip(index, shape, strict=False)):
             continue
         label_value = int(label_data[index])
         # Background (label 0) is not an annotatable instance; skip it.
@@ -421,10 +422,8 @@ class PanopticAnnotatorWidget(QWidget):
 
     def closeEvent(self, event):
         for key in self._bound_keys:
-            try:
+            with contextlib.suppress(Exception):
                 self.viewer.bind_key(key, None, overwrite=True)
-            except Exception:
-                pass
         if self._pending_write:
             self._save_master_sync()
         super().closeEvent(event)

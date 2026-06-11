@@ -1,8 +1,21 @@
+import numpy as np
+import pandas as pd
+import pytest
+import tifffile
+
 from napari_towbintools_annotator.colors import (
     CLASS_PALETTE,
     class_hex,
     hex_to_rgba_float,
 )
+from napari_towbintools_annotator.panoptic_annotator import (
+    PanopticAnnotatorWidget,
+    nearest_class_id,
+    points_to_rows,
+    rows_to_points,
+)
+from napari_towbintools_annotator.project import PanopticProject, Project
+from napari_towbintools_annotator.project_creator import scan_panoptic_files
 
 
 def test_hex_to_rgba_float_white():
@@ -21,11 +34,6 @@ def test_class_hex_indexes_palette_and_wraps():
     classes = list(range(len(CLASS_PALETTE) + 2))
     assert class_hex(classes, 0) == CLASS_PALETTE[0]
     assert class_hex(classes, len(CLASS_PALETTE)) == CLASS_PALETTE[0]
-
-
-import pytest
-
-from napari_towbintools_annotator.project import PanopticProject, Project
 
 
 def _make_panoptic_project(tmp_path, classes=("a", "b")):
@@ -79,16 +87,6 @@ def test_panoptic_project_requires_mask_dirs(tmp_path):
             classes=["a"],
             project_dir=str(tmp_path),
         )
-
-
-import numpy as np
-import pandas as pd
-
-from napari_towbintools_annotator.panoptic_annotator import (
-    nearest_class_id,
-    points_to_rows,
-    rows_to_points,
-)
 
 
 def test_nearest_class_id_handles_float_noise():
@@ -178,9 +176,6 @@ def test_points_to_rows_skips_background_label():
     assert rows == [{"Label": 5, "ClassID": 0, "Class": "a"}]
 
 
-from napari_towbintools_annotator.project_creator import scan_panoptic_files
-
-
 def test_scan_panoptic_files_matches(tmp_path):
     ref = tmp_path / "ref"
     seg = tmp_path / "seg"
@@ -208,7 +203,9 @@ def test_scan_panoptic_files_mismatch_raises(tmp_path):
 
 
 def test_run_panoptic_creation_copies_segmentations(tmp_path):
-    from napari_towbintools_annotator.project_creator import ProjectCreatorWidget
+    from napari_towbintools_annotator.project_creator import (
+        ProjectCreatorWidget,
+    )
 
     src_ref = tmp_path / "src_ref"
     src_seg = tmp_path / "src_seg"
@@ -242,13 +239,6 @@ def test_run_panoptic_creation_copies_segmentations(tmp_path):
     ref_path = str(master.loc[0, "Reference"])
     assert str(project_dir) in seg_path
     assert str(project_dir) in ref_path
-
-
-import tifffile
-
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
 
 
 def test_panoptic_widget_load_and_save(tmp_path):

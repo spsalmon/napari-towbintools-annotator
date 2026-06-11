@@ -5,13 +5,15 @@ import imageio
 import pandas as pd
 import tifffile
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QButtonGroup
-from qtpy.QtWidgets import QLabel
-from qtpy.QtWidgets import QListWidget
-from qtpy.QtWidgets import QListWidgetItem
-from qtpy.QtWidgets import QPushButton
-from qtpy.QtWidgets import QVBoxLayout
-from qtpy.QtWidgets import QWidget
+from qtpy.QtWidgets import (
+    QButtonGroup,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .colors import CLASS_PALETTE as _CLASS_PALETTE
 from .project import ClassificationProject
@@ -20,7 +22,7 @@ from .project import ClassificationProject
 def _read_image(path):
     try:
         return tifffile.imread(path)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return imageio.imread(path)
 
 

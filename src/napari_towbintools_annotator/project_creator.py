@@ -7,28 +7,26 @@ import numpy as np
 import pandas as pd
 from napari_guitils.gui_structures import VHGroup
 from natsort import natsorted
-from qtpy.QtCore import QThread
-from qtpy.QtCore import QTimer
-from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QButtonGroup
-from qtpy.QtWidgets import QCheckBox
-from qtpy.QtWidgets import QFileDialog
-from qtpy.QtWidgets import QHBoxLayout
-from qtpy.QtWidgets import QLabel
-from qtpy.QtWidgets import QLineEdit
-from qtpy.QtWidgets import QListWidget
-from qtpy.QtWidgets import QMessageBox
-from qtpy.QtWidgets import QPushButton
-from qtpy.QtWidgets import QRadioButton
-from qtpy.QtWidgets import QScrollArea
-from qtpy.QtWidgets import QVBoxLayout
-from qtpy.QtWidgets import QWidget
+from qtpy.QtCore import QThread, QTimer, Signal
+from qtpy.QtWidgets import (
+    QButtonGroup,
+    QCheckBox,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .annotators import ClassificationAnnotatorWidget
 from .panoptic_annotator import PanopticAnnotatorWidget
-from .project import ClassificationProject
-from .project import PanopticProject
-from .project import Project
+from .project import ClassificationProject, PanopticProject, Project
 
 
 def convert_path_to_dir_name(path):
@@ -81,7 +79,7 @@ class ProjectCreationWorker(QThread):
         try:
             project_dir = self._task(self.status)
             self.finished.emit(project_dir)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.error.emit(str(e))
 
 
