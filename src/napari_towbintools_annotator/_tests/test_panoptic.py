@@ -242,3 +242,71 @@ def test_run_panoptic_creation_copies_segmentations(tmp_path):
     ref_path = str(master.loc[0, "Reference"])
     assert str(project_dir) in seg_path
     assert str(project_dir) in ref_path
+
+
+import tifffile
+
+from napari_towbintools_annotator.panoptic_annotator import (
+    PanopticAnnotatorWidget,
+)
+
+
+def test_panoptic_widget_load_and_save(tmp_path):
+    import napari
+
+    project_dir = tmp_path / "proj"
+    annotations_dir = project_dir / "annotations"
+    annotations_dir.mkdir(parents=True)
+
+    reference = np.zeros((10, 10), dtype=np.uint8)
+    segmentation = np.zeros((10, 10), dtype=np.uint16)
+    segmentation[2:4, 2:4] = 5
+    ref_path = tmp_path / "img.tif"
+    seg_path = tmp_path / "img_seg.tif"
+    tifffile.imwrite(str(ref_path), reference)
+    tifffile.imwrite(str(seg_path), segmentation)
+
+    pd.DataFrame(
+        {
+            "Reference": [str(ref_path)],
+            "Segmentation": [str(seg_path)],
+            "Annotation": [""],
+        }
+    ).to_csv(annotations_dir / "annotations.csv", index=False)
+
+    project = PanopticProject(
+        name="p",
+        image_type="multichannel",
+        annotation_directories=["annotations"],
+        annotation_df_path="annotations/annotations.csv",
+        data_directories=[str(tmp_path)],
+        mask_directories=[str(tmp_path)],
+        classes=["a", "b"],
+        project_dir=str(project_dir),
+    )
+
+    viewer = napari.Viewer(show=False)
+    try:
+        widget = PanopticAnnotatorWidget(viewer, project)
+        assert widget.file_list_widget.count() == 1
+        assert widget._annotation_layer is not None
+
+        # Drop one point on instance 5, colored as class 0 ("a").
+        widget._annotation_layer.data = np.array([[3, 3]])
+        widget._annotation_layer.face_color = np.array(
+            [widget.class_id_to_color[0]], dtype=float
+        )
+        widget.save_annotations()
+        widget._save_master_sync()
+    finally:
+        viewer.close()
+
+    out_csv = annotations_dir / "img.csv"
+    assert out_csv.exists()
+    saved = pd.read_csv(out_csv)
+    assert int(saved.loc[0, "Label"]) == 5
+    assert int(saved.loc[0, "ClassID"]) == 0
+    assert saved.loc[0, "Class"] == "a"
+
+    master = pd.read_csv(annotations_dir / "annotations.csv")
+    assert str(master.loc[0, "Annotation"]) == str(out_csv)
