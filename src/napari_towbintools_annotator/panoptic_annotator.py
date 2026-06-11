@@ -371,13 +371,30 @@ class PanopticAnnotatorWidget(QWidget):
 
         self.viewer.reset_view()
 
+    def _autosave_current_file(self):
+        """Persist the current file's annotations before navigating away.
+
+        Files with no placed points are skipped so untouched files are not
+        marked as done (which would also break resume-on-open). The explicit
+        Save button still writes empty annotations when the user wants to.
+        """
+        if (
+            self._annotation_layer is None
+            or self._segmentation_layer is None
+            or len(self._annotation_layer.data) == 0
+        ):
+            return
+        self.save_annotations()
+
     def choose_file_from_list(self):
+        self._autosave_current_file()
         self.current_file_idx = self.file_list_widget.currentRow()
         self._load_file()
 
     def next_file(self):
         if not self.reference_files:
             return
+        self._autosave_current_file()
         self.current_file_idx = min(
             self.current_file_idx + 1, len(self.reference_files) - 1
         )
@@ -387,6 +404,7 @@ class PanopticAnnotatorWidget(QWidget):
     def previous_file(self):
         if not self.reference_files:
             return
+        self._autosave_current_file()
         self.current_file_idx = max(self.current_file_idx - 1, 0)
         self.file_list_widget.setCurrentRow(self.current_file_idx)
         self._load_file()

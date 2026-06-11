@@ -24,7 +24,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .annotators import ClassificationAnnotatorWidget
+from .classification_annotator import ClassificationAnnotatorWidget
 from .panoptic_annotator import PanopticAnnotatorWidget
 from .project import ClassificationProject, PanopticProject, Project
 

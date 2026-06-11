@@ -302,6 +302,79 @@ def test_panoptic_widget_load_and_save(tmp_path):
     assert str(master.loc[0, "Annotation"]) == str(out_csv)
 
 
+def test_panoptic_autosaves_on_navigation(tmp_path):
+    """Navigating to another image persists the current annotations without
+    an explicit Save, but only when points were actually placed."""
+    import napari
+
+    project_dir = tmp_path / "proj"
+    annotations_dir = project_dir / "annotations"
+    annotations_dir.mkdir(parents=True)
+
+    references, segmentations = [], []
+    for i in range(2):
+        reference = np.zeros((10, 10), dtype=np.uint8)
+        segmentation = np.zeros((10, 10), dtype=np.uint16)
+        segmentation[2:4, 2:4] = 5
+        ref_path = tmp_path / f"img{i}.tif"
+        seg_path = tmp_path / f"img{i}_seg.tif"
+        tifffile.imwrite(str(ref_path), reference)
+        tifffile.imwrite(str(seg_path), segmentation)
+        references.append(str(ref_path))
+        segmentations.append(str(seg_path))
+
+    pd.DataFrame(
+        {
+            "Reference": references,
+            "Segmentation": segmentations,
+            "Annotation": ["", ""],
+        }
+    ).to_csv(annotations_dir / "annotations.csv", index=False)
+
+    project = PanopticProject(
+        name="p",
+        image_type="multichannel",
+        annotation_directories=["annotations"],
+        annotation_df_path="annotations/annotations.csv",
+        data_directories=[str(tmp_path)],
+        mask_directories=[str(tmp_path)],
+        classes=["a", "b"],
+        project_dir=str(project_dir),
+    )
+
+    viewer = napari.Viewer(show=False)
+    try:
+        widget = PanopticAnnotatorWidget(viewer, project)
+        assert widget.current_file_idx == 0
+
+        # Place a point on instance 5 of the first image, then navigate.
+        widget._annotation_layer.data = np.array([[3, 3]])
+        widget._annotation_layer.face_color = np.array(
+            [widget.class_id_to_color[0]], dtype=float
+        )
+        widget.next_file()
+        widget._save_master_sync()
+
+        out_csv = annotations_dir / "img0.csv"
+        assert out_csv.exists(), "navigating should autosave the first image"
+        saved = pd.read_csv(out_csv)
+        assert int(saved.loc[0, "Label"]) == 5
+        assert saved.loc[0, "Class"] == "a"
+
+        # The second image had no points placed; navigating back must not
+        # mark it as done (no per-image CSV, master Annotation stays empty).
+        assert widget.current_file_idx == 1
+        widget.previous_file()
+        widget._save_master_sync()
+        assert not (annotations_dir / "img1.csv").exists()
+    finally:
+        viewer.close()
+
+    master = pd.read_csv(annotations_dir / "annotations.csv")
+    assert str(master.loc[0, "Annotation"]) == str(annotations_dir / "img0.csv")
+    assert str(master.loc[1, "Annotation"]).strip() in ("", "nan", "None")
+
+
 def _displayed_mask_slice(layer):
     return np.asarray(layer._data_view)
 
