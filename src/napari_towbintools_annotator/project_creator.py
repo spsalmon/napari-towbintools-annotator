@@ -25,7 +25,9 @@ from qtpy.QtWidgets import QVBoxLayout
 from qtpy.QtWidgets import QWidget
 
 from .annotators import ClassificationAnnotatorWidget
+from .panoptic_annotator import PanopticAnnotatorWidget
 from .project import ClassificationProject
+from .project import PanopticProject
 from .project import Project
 
 
@@ -157,6 +159,8 @@ def create_annotator_widget(napari_viewer, project, parent=None):
         return ClassificationAnnotatorWidget(
             napari_viewer, project, parent=parent
         )
+    if project.project_type == "panoptic":
+        return PanopticAnnotatorWidget(napari_viewer, project, parent=parent)
     raise NotImplementedError(
         f"Unsupported project type: {project.project_type}"
     )
@@ -305,7 +309,7 @@ class ProjectCreatorWidget(QWidget):
 
         # --- Classification-specific options ---
         self.classification_options_layout = VHGroup(
-            "Classification", orientation="G"
+            "Annotation Classes", orientation="G"
         )
 
         self.classes_layout = VHGroup("Classes", orientation="G")
@@ -352,9 +356,20 @@ class ProjectCreatorWidget(QWidget):
 
     def toggle_project_type_options(self):
         is_classification = self.project_type_classification.isChecked()
-        self.classification_options_layout.gbox.setVisible(is_classification)
+        is_panoptic = self.project_type_panoptic.isChecked()
+
+        self.classification_options_layout.gbox.setVisible(
+            is_classification or is_panoptic
+        )
         self.display_mode_group.gbox.setVisible(is_classification)
-        if not is_classification:
+
+        if is_panoptic:
+            # Panoptic always needs references (images) and segmentations.
+            self.mask_dir_selector_widget.setVisible(True)
+            self.data_selection_widget.setVisible(True)
+        elif is_classification:
+            self._toggle_mask_dir_selector()
+        else:
             self.mask_dir_selector_widget.setVisible(False)
             self.data_selection_widget.setVisible(True)
 
@@ -531,6 +546,32 @@ class ProjectCreatorWidget(QWidget):
                     status,
                 )
 
+        elif project_type == "panoptic":
+            if not self.mask_directories:
+                self._show_error(
+                    "No segmentation (mask) directories selected."
+                )
+                return
+            classes = self._get_classes()
+            if not classes:
+                self._show_error("No classes defined.")
+                return
+
+            data_directories = list(self.data_directories)
+            mask_directories = list(self.mask_directories)
+
+            def task(status):
+                return self._run_panoptic_creation(
+                    project_name,
+                    image_type,
+                    project_dir,
+                    data_directories,
+                    mask_directories,
+                    classes,
+                    copy_data,
+                    status,
+                )
+
         else:
             data_directories = list(self.data_directories)
 
@@ -648,6 +689,62 @@ class ProjectCreatorWidget(QWidget):
             data_directories=data_directories,
             mask_directories=mask_directories,
             display_mode=display_mode,
+            classes=classes,
+            project_dir=project_dir,
+        )
+        project.save()
+        return project_dir
+
+    def _run_panoptic_creation(
+        self,
+        project_name,
+        image_type,
+        project_dir,
+        data_directories,
+        mask_directories,
+        classes,
+        copy_data,
+        status,
+    ):
+        os.makedirs(project_dir, exist_ok=True)
+        annotations_save_dir = os.path.join(project_dir, "annotations")
+        os.makedirs(annotations_save_dir, exist_ok=True)
+
+        if copy_data:
+            local_data_dir = os.path.join(project_dir, "data")
+            os.makedirs(local_data_dir, exist_ok=True)
+            status.emit("Copying data...")
+            data_directories = self._copy_data_directories_static(
+                data_directories, local_data_dir, status
+            )
+
+        status.emit("Scanning files...")
+        reference_files, segmentation_files = scan_panoptic_files(
+            data_directories, mask_directories
+        )
+
+        status.emit("Writing annotation file...")
+        annotation_df = pd.DataFrame(
+            {
+                "Reference": reference_files,
+                "Segmentation": segmentation_files,
+                "Annotation": [""] * len(reference_files),
+            }
+        )
+        annotation_df_path = os.path.join(
+            annotations_save_dir, "annotations.csv"
+        )
+        annotation_df.to_csv(annotation_df_path, index=False)
+
+        project = PanopticProject(
+            name=project_name,
+            image_type=image_type,
+            annotation_directories=["annotations"],
+            annotation_df_path=os.path.relpath(
+                annotation_df_path, project_dir
+            ),
+            data_directories=data_directories,
+            mask_directories=mask_directories,
             classes=classes,
             project_dir=project_dir,
         )
