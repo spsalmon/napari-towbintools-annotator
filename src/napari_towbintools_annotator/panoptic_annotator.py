@@ -2,8 +2,10 @@ import contextlib
 import os
 import threading
 
+import imageio
 import numpy as np
 import pandas as pd
+import tifffile
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -19,6 +21,21 @@ from qtpy.QtWidgets import (
 from skimage.measure import regionprops
 
 from .colors import CLASS_PALETTE, hex_to_rgba_float
+
+
+def _read_array(path):
+    try:
+        return tifffile.imread(path)
+    except Exception:  # noqa: BLE001
+        return imageio.imread(path)
+
+def channel_axis_first(image, mask_shape):
+    """Move the axes around so that the mask Z sliders matches the image's Z slider.
+    """
+    mask_shape = tuple(mask_shape)
+    if image.ndim != len(mask_shape) + 1:
+        return image
+    return image.swapaxes(0, 1)
 
 
 def nearest_class_id(color, id_to_color):
@@ -333,10 +350,18 @@ class PanopticAnnotatorWidget(QWidget):
         segmentation_file = row["Segmentation"]
         annotation_file = str(row["Annotation"]).strip()
 
-        self._reference_layer = self.viewer.open(reference_file)[-1]
-        self._segmentation_layer = self.viewer.open(
-            segmentation_file, layer_type="labels", opacity=0.5
-        )[-1]
+        segmentation = _read_array(segmentation_file)
+
+        reference = channel_axis_first(
+            _read_array(reference_file), segmentation.shape
+        )
+
+        self._reference_layer = self.viewer.add_image(
+            reference, name=os.path.basename(reference_file)
+        )
+        self._segmentation_layer = self.viewer.add_labels(
+            segmentation, name=os.path.basename(segmentation_file), opacity=0.5
+        )
         self._add_annotation_layer()
 
         if annotation_file not in ("", "nan", "None") and os.path.isfile(

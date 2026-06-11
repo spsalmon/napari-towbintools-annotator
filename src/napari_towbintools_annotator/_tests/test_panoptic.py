@@ -302,6 +302,75 @@ def test_panoptic_widget_load_and_save(tmp_path):
     assert str(master.loc[0, "Annotation"]) == str(out_csv)
 
 
+def _displayed_mask_slice(layer):
+    return np.asarray(layer._data_view)
+
+
+@pytest.mark.parametrize(
+    ("ref_shape", "channel_axis"),
+    [((2, 5, 10, 10), 0), ((5, 2, 10, 10), 1)],
+)
+def test_panoptic_zstack_mask_z_tracks_image_z(tmp_path, ref_shape, channel_axis):
+    """A 4D reference with a channel axis (in any position) must overlay a
+    [Z, Y, X] mask so the mask's Z follows the image's Z slider, not the
+    channel slider (regression)."""
+    import napari
+
+    project_dir = tmp_path / "proj"
+    annotations_dir = project_dir / "annotations"
+    annotations_dir.mkdir(parents=True)
+
+    # Mask is [Z, Y, X] with a distinct label value per Z plane.
+    segmentation = np.zeros((5, 10, 10), dtype=np.uint16)
+    for z in range(5):
+        segmentation[z] = z + 1
+    reference = np.zeros(ref_shape, dtype=np.uint16)
+
+    ref_path = tmp_path / "img.tif"
+    seg_path = tmp_path / "img_seg.tif"
+    tifffile.imwrite(str(ref_path), reference)
+    tifffile.imwrite(str(seg_path), segmentation)
+
+    pd.DataFrame(
+        {
+            "Reference": [str(ref_path)],
+            "Segmentation": [str(seg_path)],
+            "Annotation": [""],
+        }
+    ).to_csv(annotations_dir / "annotations.csv", index=False)
+
+    project = PanopticProject(
+        name="p",
+        image_type="zstack",
+        annotation_directories=["annotations"],
+        annotation_df_path="annotations/annotations.csv",
+        data_directories=[str(tmp_path)],
+        mask_directories=[str(tmp_path)],
+        classes=["a", "b"],
+        project_dir=str(project_dir),
+    )
+
+    viewer = napari.Viewer(show=False)
+    try:
+        widget = PanopticAnnotatorWidget(viewer, project)
+        # Stay 4D: channel keeps its own slider.
+        assert viewer.dims.ndim == 4
+        seg_layer = widget._segmentation_layer
+
+        # World axis 0 is the channel slider; world axis 1 is Z. Moving the
+        # channel slider must NOT change the mask slice; moving Z must.
+        viewer.dims.current_step = (0, 0, 0, 0)
+        z0 = np.unique(_displayed_mask_slice(seg_layer))
+        viewer.dims.current_step = (1, 0, 0, 0)  # change channel
+        assert np.array_equal(np.unique(_displayed_mask_slice(seg_layer)), z0)
+        viewer.dims.current_step = (0, 3, 0, 0)  # change Z
+        z3 = np.unique(_displayed_mask_slice(seg_layer))
+        assert not np.array_equal(z3, z0)
+        assert z3.tolist() == [4]  # Z plane index 3 -> label 4
+    finally:
+        viewer.close()
+
+
 def test_panoptic_widget_save_empty_then_reload(tmp_path):
     """Saving with no points must not crash on subsequent reload (regression)."""
     import napari
