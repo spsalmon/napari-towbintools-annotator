@@ -30,6 +30,7 @@ dependencies = [
     "napari_guitils",
     "natsort",
     "scikit-image",
+    "scipy",
     "tifffile",
     "imageio",
 ]

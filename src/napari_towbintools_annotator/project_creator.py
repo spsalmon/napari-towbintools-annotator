@@ -11,6 +11,7 @@ from qtpy.QtCore import QThread, QTimer, Signal
 from qtpy.QtWidgets import (
     QButtonGroup,
     QCheckBox,
+    QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -260,6 +261,22 @@ class ProjectCreatorWidget(QWidget):
         )
         self.display_mode_group.gbox.setVisible(True)
 
+        # Stitch threshold — panoptic only. Controls how eagerly the same
+        # nucleus is linked across z-planes when propagating annotations.
+        self.stitch_threshold_group = VHGroup("Z-Stitching", orientation="G")
+        self.stitch_threshold_spinbox = QDoubleSpinBox()
+        self.stitch_threshold_spinbox.setRange(0.05, 0.95)
+        self.stitch_threshold_spinbox.setSingleStep(0.05)
+        self.stitch_threshold_spinbox.setValue(0.25)
+        self.stitch_threshold_group.glayout.addWidget(QLabel("IoU threshold"))
+        self.stitch_threshold_group.glayout.addWidget(
+            self.stitch_threshold_spinbox
+        )
+        self.project_type_layout.glayout.addWidget(
+            self.stitch_threshold_group.gbox
+        )
+        self.stitch_threshold_group.gbox.setVisible(False)
+
         self.project_type_selector.buttonClicked.connect(
             self.toggle_project_type_options
         )
@@ -360,6 +377,7 @@ class ProjectCreatorWidget(QWidget):
             is_classification or is_panoptic
         )
         self.display_mode_group.gbox.setVisible(is_classification)
+        self.stitch_threshold_group.gbox.setVisible(is_panoptic)
 
         if is_panoptic:
             # Panoptic always needs references (images) and segmentations.
@@ -557,6 +575,7 @@ class ProjectCreatorWidget(QWidget):
 
             data_directories = list(self.data_directories)
             mask_directories = list(self.mask_directories)
+            stitch_threshold = self.stitch_threshold_spinbox.value()
 
             def task(status):
                 return self._run_panoptic_creation(
@@ -568,6 +587,7 @@ class ProjectCreatorWidget(QWidget):
                     classes,
                     copy_data,
                     status,
+                    stitch_threshold,
                 )
 
         else:
@@ -703,6 +723,7 @@ class ProjectCreatorWidget(QWidget):
         classes,
         copy_data,
         status,
+        stitch_threshold=0.25,
     ):
         os.makedirs(project_dir, exist_ok=True)
         annotations_save_dir = os.path.join(project_dir, "annotations")
@@ -752,6 +773,7 @@ class ProjectCreatorWidget(QWidget):
             mask_directories=mask_directories,
             classes=classes,
             project_dir=project_dir,
+            stitch_threshold=stitch_threshold,
         )
         project.save()
         return project_dir

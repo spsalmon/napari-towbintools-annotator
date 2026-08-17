@@ -61,6 +61,33 @@ def test_panoptic_project_save_load_roundtrip(tmp_path):
     assert loaded.annotation_df_path == "annotations/annotations.csv"
 
 
+def test_panoptic_project_stitch_threshold_defaults_to_quarter(tmp_path):
+    assert _make_panoptic_project(tmp_path).stitch_threshold == 0.25
+
+
+def test_panoptic_project_stitch_threshold_round_trips(tmp_path):
+    proj = _make_panoptic_project(tmp_path)
+    proj.stitch_threshold = 0.4
+    proj.save()
+
+    assert Project.load(str(tmp_path)).stitch_threshold == 0.4
+
+
+def test_panoptic_project_without_stitch_threshold_still_loads(tmp_path):
+    """Projects created before stitching existed must keep opening."""
+    import yaml
+
+    proj = _make_panoptic_project(tmp_path)
+    proj.save()
+    with open(tmp_path / "project.yaml") as handle:
+        data = yaml.safe_load(handle)
+    del data["stitch_threshold"]
+    with open(tmp_path / "project.yaml", "w") as handle:
+        yaml.dump(data, handle)
+
+    assert Project.load(str(tmp_path)).stitch_threshold == 0.25
+
+
 def test_panoptic_project_requires_classes(tmp_path):
     with pytest.raises(ValueError):
         PanopticProject(
@@ -158,6 +185,54 @@ def test_rows_to_points_3d_centroid():
     np.testing.assert_allclose(point, [1, 2.5, 2.5])
 
 
+def test_rows_to_points_uses_supplied_centroid_table():
+    """A precomputed table is used verbatim, with no per-row array scan.
+
+    The label array is deliberately empty: a point can only be placed if the
+    supplied table was consulted.
+    """
+    label_data = np.zeros((3, 10, 10), dtype=int)
+    df = pd.DataFrame([{"Z": 1, "Label": 7, "ClassID": 0, "Class": "a"}])
+
+    placements = rows_to_points(
+        df,
+        label_data,
+        {0: (1, 0, 0, 1)},
+        plane_axis="Z",
+        centroids={(1, 7): (4.0, 5.0)},
+    )
+
+    assert len(placements) == 1
+    np.testing.assert_allclose(placements[0][0], [1, 4.0, 5.0])
+
+
+def test_rows_to_points_supplied_table_2d_is_keyed_on_plane_zero():
+    label_data = np.zeros((10, 10), dtype=int)
+    df = pd.DataFrame([{"Label": 3, "ClassID": 0, "Class": "a"}])
+
+    placements = rows_to_points(
+        df, label_data, {0: (1, 0, 0, 1)}, centroids={(0, 3): (2.0, 8.0)}
+    )
+
+    assert len(placements) == 1
+    np.testing.assert_allclose(placements[0][0], [2.0, 8.0])
+
+
+def test_rows_to_points_skips_rows_absent_from_supplied_table():
+    label_data = np.zeros((3, 10, 10), dtype=int)
+    df = pd.DataFrame([{"Z": 1, "Label": 99, "ClassID": 0, "Class": "a"}])
+
+    placements = rows_to_points(
+        df,
+        label_data,
+        {0: (1, 0, 0, 1)},
+        plane_axis="Z",
+        centroids={(1, 7): (4.0, 5.0)},
+    )
+
+    assert placements == []
+
+
 def test_rows_to_points_skips_missing_label():
     label_data = np.zeros((10, 10), dtype=int)
     df = pd.DataFrame([{"Label": 99, "ClassID": 0, "Class": "a"}])
@@ -239,6 +314,62 @@ def test_run_panoptic_creation_copies_segmentations(tmp_path):
     ref_path = str(master.loc[0, "Reference"])
     assert str(project_dir) in seg_path
     assert str(project_dir) in ref_path
+
+
+def test_run_panoptic_creation_persists_stitch_threshold(tmp_path):
+    from napari_towbintools_annotator.project_creator import (
+        ProjectCreatorWidget,
+    )
+
+    src_ref = tmp_path / "src_ref"
+    src_seg = tmp_path / "src_seg"
+    src_ref.mkdir()
+    src_seg.mkdir()
+    (src_ref / "a.tif").write_text("x")
+    (src_seg / "a.tif").write_text("x")
+    project_dir = tmp_path / "proj"
+
+    class _Status:
+        def emit(self, *args, **kwargs):
+            pass
+
+    widget = ProjectCreatorWidget.__new__(ProjectCreatorWidget)
+    ProjectCreatorWidget._run_panoptic_creation(
+        widget,
+        "proj",
+        "zstack",
+        str(project_dir),
+        [str(src_ref)],
+        [str(src_seg)],
+        ["a"],
+        False,
+        _Status(),
+        0.35,
+    )
+
+    assert Project.load(str(project_dir)).stitch_threshold == 0.35
+
+
+def test_creator_shows_stitch_threshold_only_for_panoptic():
+    import napari
+
+    from napari_towbintools_annotator.project_creator import (
+        ProjectCreatorWidget,
+    )
+
+    viewer = napari.Viewer(show=False)
+    try:
+        widget = ProjectCreatorWidget(viewer)
+
+        widget.project_type_panoptic.setChecked(True)
+        widget.toggle_project_type_options()
+        assert widget.stitch_threshold_group.gbox.isVisibleTo(widget)
+
+        widget.project_type_classification.setChecked(True)
+        widget.toggle_project_type_options()
+        assert not widget.stitch_threshold_group.gbox.isVisibleTo(widget)
+    finally:
+        viewer.close()
 
 
 def test_panoptic_widget_load_and_save(tmp_path):

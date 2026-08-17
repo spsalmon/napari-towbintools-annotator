@@ -151,6 +151,7 @@ class PanopticProject(Project):
         data_directories: list = None,
         mask_directories: list = None,
         ignored_images: list = None,
+        stitch_threshold: float = 0.25,
     ):
         if not classes:
             raise ValueError(
@@ -178,6 +179,8 @@ class PanopticProject(Project):
         self.annotation_df_path = annotation_df_path
         self.classes = classes
         self.mask_directories = mask_directories or []
+        # IoU threshold used to link the same nucleus across z-planes.
+        self.stitch_threshold = stitch_threshold
 
     def save(self):
         project_data = {
@@ -191,6 +194,7 @@ class PanopticProject(Project):
             "ignored_images": self.ignored_images,
             "classes": self.classes,
             "mask_directories": self.mask_directories,
+            "stitch_threshold": self.stitch_threshold,
         }
 
         with open(f"{self.project_dir}/project.yaml", "w") as file:
@@ -208,4 +212,5 @@ class PanopticProject(Project):
             classes=project_data.get("classes", []),
             mask_directories=project_data.get("mask_directories", []),
             ignored_images=project_data.get("ignored_images", []),
+            stitch_threshold=project_data.get("stitch_threshold", 0.25),
         )

@@ -9,6 +9,7 @@ import tifffile
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
     QButtonGroup,
+    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -18,9 +19,9 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from skimage.measure import regionprops
 
 from .colors import CLASS_PALETTE, hex_to_rgba_float
+from .stitching import centroid_table, get_instance_index
 
 
 def _read_array(path):
@@ -50,7 +51,13 @@ def nearest_class_id(color, id_to_color):
 
 
 def points_to_rows(
-    points, face_colors, label_data, id_to_color, id_to_name, plane_axis=None
+    points,
+    face_colors,
+    label_data,
+    id_to_color,
+    id_to_name,
+    plane_axis=None,
+    instance_index=None,
 ):
     """Convert annotation points + colors into per-instance annotation rows.
 
@@ -58,6 +65,11 @@ def points_to_rows(
     under it, and its color is matched to the nearest class. Points outside the
     label array are skipped. In 3D (``plane_axis`` set) the first-axis index is
     recorded under that column name.
+
+    ``Label`` is always the value read from the segmentation on disk. When an
+    ``instance_index`` is supplied, an ``InstanceID`` column additionally
+    records which stitched 3D object the row belongs to, so downstream code can
+    group planes without re-deriving identity.
     """
     rows = []
     shape = label_data.shape
@@ -86,58 +98,46 @@ def points_to_rows(
                 "ClassID": class_id,
                 "Class": class_name,
             }
+        if instance_index is not None:
+            row["InstanceID"] = instance_index.plane_label_to_instance.get(
+                (index[0], label_value), -1
+            )
         rows.append(row)
     return rows
 
 
-def _centroid(mask):
-    props = regionprops(mask.astype(int))
-    if not props:
-        return None
-    return props[0].centroid
-
-
-def rows_to_points(annotations_df, label_data, id_to_color, plane_axis=None):
+def rows_to_points(
+    annotations_df, label_data, id_to_color, plane_axis=None, centroids=None
+):
     """Convert annotation rows back into ``(point_coords, rgba)`` placements.
 
     For each row the label's centroid is used as the point location. Rows with
-    an unknown class id, or whose label is absent from the (plane of the) label
-    array, are skipped.
+    an unknown class id, or whose label has no centroid, are skipped.
+
+    ``centroids`` is a ``{(z, label): (y, x)}`` table; 2D data is keyed on
+    plane 0. It is computed from ``label_data`` when not supplied. Passing the
+    table in matters: the caller usually already holds one, and rebuilding it
+    per file is the difference between a redraw and a stall.
     """
+    if centroids is None:
+        stack = label_data if plane_axis is not None else label_data[None]
+        centroids = centroid_table(stack)
+
     placements = []
-    if plane_axis is not None:
-        for plane in annotations_df[plane_axis].unique():
-            plane = int(plane)
-            if plane < 0 or plane >= label_data.shape[0]:
-                continue
-            plane_df = annotations_df[annotations_df[plane_axis] == plane]
-            for _, row in plane_df.iterrows():
-                color = id_to_color.get(int(row["ClassID"]))
-                if color is None:
-                    continue
-                mask = label_data[plane] == int(row["Label"])
-                if not mask.any():
-                    continue
-                centroid = _centroid(mask)
-                if centroid is None:
-                    continue
-                placements.append(
-                    (np.array([plane, centroid[0], centroid[1]]), color)
-                )
-    else:
-        for _, row in annotations_df.iterrows():
-            color = id_to_color.get(int(row["ClassID"]))
-            if color is None:
-                continue
-            mask = label_data == int(row["Label"])
-            if not mask.any():
-                continue
-            centroid = _centroid(mask)
-            if centroid is None:
-                continue
+    for _, row in annotations_df.iterrows():
+        color = id_to_color.get(int(row["ClassID"]))
+        if color is None:
+            continue
+        plane = int(row[plane_axis]) if plane_axis is not None else 0
+        centroid = centroids.get((plane, int(row["Label"])))
+        if centroid is None:
+            continue
+        if plane_axis is not None:
             placements.append(
-                (np.array([centroid[0], centroid[1]]), color)
+                (np.array([plane, centroid[0], centroid[1]]), color)
             )
+        else:
+            placements.append((np.array([centroid[0], centroid[1]]), color))
     return placements
 
 
@@ -189,6 +189,18 @@ class PanopticAnnotatorWidget(QWidget):
         self._write_lock = threading.Lock()
         self._pending_write = False
 
+        # Cross-plane identity for the current z-stack (None in 2D). Set in
+        # _load_file; _propagating guards the points handler against the
+        # edits it makes itself.
+        self._instance_index = None
+        self._propagating = False
+        self._stitch_cache_dir = os.path.join(
+            os.path.dirname(
+                os.path.join(project.project_dir, project.annotation_df_path)
+            ),
+            ".stitch_cache",
+        )
+
         # File list.
         self.file_list_widget = QListWidget()
         self._populate_file_list()
@@ -223,6 +235,24 @@ class PanopticAnnotatorWidget(QWidget):
                 button.setChecked(True)
         self.class_buttons.buttonClicked.connect(self._on_class_button)
         self.main_layout.addWidget(self.class_buttons_widget)
+
+        # Z-stitching controls; only meaningful for 3D segmentations.
+        self.stitch_widget = QWidget()
+        stitch_layout = QHBoxLayout()
+        self.stitch_widget.setLayout(stitch_layout)
+        stitch_layout.addWidget(QLabel("Stitch IoU"))
+        self.stitch_threshold_spinbox = QDoubleSpinBox()
+        self.stitch_threshold_spinbox.setRange(0.05, 0.95)
+        self.stitch_threshold_spinbox.setSingleStep(0.05)
+        self.stitch_threshold_spinbox.setValue(
+            getattr(project, "stitch_threshold", 0.25)
+        )
+        stitch_layout.addWidget(self.stitch_threshold_spinbox)
+        self.restitch_button = QPushButton("Re-stitch")
+        self.restitch_button.clicked.connect(self.restitch)
+        stitch_layout.addWidget(self.restitch_button)
+        self.stitch_widget.setVisible(False)
+        self.main_layout.addWidget(self.stitch_widget)
 
         self.save_button = QPushButton("Save annotations [S]")
         self.save_button.clicked.connect(self.save_annotations)
@@ -313,7 +343,132 @@ class PanopticAnnotatorWidget(QWidget):
         self._annotation_layer = self.viewer.add_points(
             np.zeros((0, ndim)), name="Annotations", ndim=ndim, size=10
         )
+        self._annotation_layer.events.data.connect(self._on_points_changed)
         self._update_point_color()
+
+    # ----- cross-plane propagation -----
+    def _build_instance_index(self):
+        """Recover cross-plane nucleus identity for the current stack."""
+        if self._segmentation_layer is None or (
+            self._segmentation_layer.ndim != 3
+        ):
+            self._instance_index = None
+            return
+        row = self.annotation_df.iloc[self.current_file_idx]
+        self._instance_index = get_instance_index(
+            row["Segmentation"],
+            np.asarray(self._segmentation_layer.data),
+            self.stitch_threshold_spinbox.value(),
+            self._stitch_cache_dir,
+        )
+
+    def _centroids(self):
+        """Centroid table matching the current segmentation's dimensionality."""
+        if self._instance_index is not None:
+            return self._instance_index.centroids
+        if self._segmentation_layer is None:
+            return {}
+        return centroid_table(
+            np.asarray(self._segmentation_layer.data)[None]
+        )
+
+    def _instance_of_point(self, point):
+        return self._instance_index.instance_at(
+            *(int(round(coord)) for coord in point)
+        )
+
+    def _on_points_changed(self, event):
+        """Propagate a freshly placed point across the nucleus it landed on.
+
+        Only additions are acted on. Deletions are deliberately left alone so
+        that removing a dot trims an over-eager stitch, and moves are ignored
+        because saving resolves whatever label a point finally sits on.
+        """
+        if self._propagating or self._instance_index is None:
+            return
+        action = getattr(event, "action", None)
+        if getattr(action, "value", action) != "added":
+            return
+
+        layer = self._annotation_layer
+        data = np.asarray(layer.data)
+        if len(data) == 0:
+            return
+
+        # The added points are the trailing ones; a click adds exactly one.
+        indices = getattr(event, "data_indices", (-1,))
+        added = sorted({int(i) % len(data) for i in indices})
+        if not added:
+            return
+        clicked = data[added[-1]]
+        instance = self._instance_of_point(clicked)
+
+        keep = np.array(
+            [i for i in range(len(data)) if i not in set(added)], dtype=int
+        )
+        if instance is None:
+            # Landed on background: it can never produce a row, so drop it
+            # rather than leave a dot that looks annotated.
+            self._set_points(data[keep], np.asarray(layer.face_color)[keep])
+            return
+
+        self._rebuild_group(instance, int(round(clicked[0])), keep)
+
+    def _rebuild_group(self, instance, clicked_plane, keep):
+        """Redraw one nucleus's dots in the selected class.
+
+        Target planes start from those already annotated, so a dot the user
+        deleted stays deleted; a nucleus annotated for the first time gets a
+        dot on every plane it occupies.
+        """
+        layer = self._annotation_layer
+        data = np.asarray(layer.data)
+        colors = np.asarray(layer.face_color)
+
+        others, other_colors, annotated_planes = [], [], set()
+        for i in keep:
+            if self._instance_of_point(data[i]) == instance:
+                annotated_planes.add(int(round(data[i][0])))
+            else:
+                others.append(data[i])
+                other_colors.append(colors[i])
+
+        planes = self._instance_index.planes_of(instance)
+        targets = annotated_planes or set(planes)
+        targets = sorted(targets | {clicked_plane})
+
+        color = self.class_name_to_color[self.selected_class]
+        for plane in targets:
+            label = planes.get(plane)
+            if label is None:
+                continue
+            centroid = self._instance_index.centroid(plane, label)
+            if centroid is None:
+                continue
+            others.append(np.array([plane, centroid[0], centroid[1]]))
+            other_colors.append(color)
+
+        self._set_points(others, other_colors)
+
+    def _set_points(self, points, colors):
+        """Replace the layer's contents without re-entering the handler."""
+        ndim = self._segmentation_layer.ndim
+        self._propagating = True
+        try:
+            layer = self._annotation_layer
+            if len(points) == 0:
+                layer.data = np.zeros((0, ndim))
+            else:
+                layer.data = np.asarray(points, dtype=float)
+                layer.face_color = np.asarray(colors, dtype=float)
+            layer.selected_data = set()
+        finally:
+            self._propagating = False
+        self._update_point_color()
+
+    def restitch(self):
+        """Rebuild identity at the current threshold, keeping placed dots."""
+        self._build_instance_index()
 
     def _replay_annotations(self, csv_path):
         try:
@@ -324,14 +479,17 @@ class PanopticAnnotatorWidget(QWidget):
             return
         label_data = np.asarray(self._segmentation_layer.data)
         placements = rows_to_points(
-            df, label_data, self.class_id_to_color, self._plane_axis()
+            df,
+            label_data,
+            self.class_id_to_color,
+            self._plane_axis(),
+            centroids=self._centroids(),
         )
         if not placements:
             return
         coords = np.array([point for point, _ in placements])
         colors = np.array([color for _, color in placements], dtype=float)
-        self._annotation_layer.data = coords
-        self._annotation_layer.face_color = colors
+        self._set_points(coords, colors)
 
     def _load_file(self):
         if not self.reference_files or not (
@@ -362,6 +520,8 @@ class PanopticAnnotatorWidget(QWidget):
         self._segmentation_layer = self.viewer.add_labels(
             segmentation, name=os.path.basename(segmentation_file), opacity=0.5
         )
+        self._build_instance_index()
+        self.stitch_widget.setVisible(self._instance_index is not None)
         self._add_annotation_layer()
 
         if annotation_file not in ("", "nan", "None") and os.path.isfile(
@@ -422,10 +582,14 @@ class PanopticAnnotatorWidget(QWidget):
             self.class_id_to_color,
             self.class_id_to_name,
             plane_axis,
+            instance_index=self._instance_index,
         )
+        # InstanceID is appended last so positional readers of the older
+        # column layout keep working.
         columns = (
             ([plane_axis] if plane_axis is not None else [])
             + ["Label", "ClassID", "Class"]
+            + (["InstanceID"] if self._instance_index is not None else [])
         )
         df = pd.DataFrame(rows, columns=columns)
 
