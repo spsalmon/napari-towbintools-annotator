@@ -56,6 +56,43 @@ def nearest_class_id(color, id_to_color):
     return best_id
 
 
+def majority_class_colors(points, face_colors, instance_index, id_to_color):
+    """Recolour dots so each instance carries the class it holds most often.
+
+    Used after a re-stitch: the dots keep their positions, but a nucleus that
+    merged out of differently classed pieces settles on the class it was
+    given most. Ties go to the most recently placed dot — the points layer
+    keeps insertion order, so a later dot is a newer answer. Dots whose
+    instance cannot be resolved keep the colour they already had.
+    """
+    classes = [nearest_class_id(color, id_to_color) for color in face_colors]
+
+    instances, votes = [], {}
+    for i, point in enumerate(points):
+        instance = instance_index.instance_at(
+            *(int(round(coord)) for coord in point)
+        )
+        instances.append(instance)
+        if instance is None:
+            continue
+        # (count, latest position) per class: comparing the pair settles the
+        # majority first and the tie second, in one max().
+        tally = votes.setdefault(instance, {})
+        count, _ = tally.get(classes[i], (0, -1))
+        tally[classes[i]] = (count + 1, i)
+
+    winners = {
+        instance: max(tally, key=tally.get)
+        for instance, tally in votes.items()
+    }
+
+    colors = []
+    for i, instance in enumerate(instances):
+        color = id_to_color.get(winners.get(instance))
+        colors.append(face_colors[i] if color is None else color)
+    return np.asarray(colors, dtype=float)
+
+
 def points_to_rows(
     points,
     face_colors,
@@ -534,9 +571,30 @@ class PanopticAnnotatorWidget(QWidget):
             self.viewer.layers.index(self._segmentation_layer) + 1,
         )
 
+    def _apply_majority_classes(self):
+        """Settle every instance on the class its dots mostly carry."""
+        layer = self._annotation_layer
+        if layer is None or self._instance_index is None:
+            return
+        data = np.asarray(layer.data)
+        if len(data) == 0:
+            return
+        colors = majority_class_colors(
+            data,
+            np.asarray(layer.face_color),
+            self._instance_index,
+            self.class_id_to_color,
+        )
+        self._set_points(data, colors)
+
     def restitch(self):
-        """Rebuild identity at the current threshold, keeping placed dots."""
+        """Rebuild identity at the current threshold, keeping placed dots.
+
+        Dots stay where they are. A nucleus that merged out of differently
+        classed pieces takes the class it carries most often.
+        """
         self._build_instance_index()
+        self._apply_majority_classes()
 
     def _replay_annotations(self, csv_path):
         try:
