@@ -264,6 +264,42 @@ def build_instance_index(masks, threshold=0.25):
     )
 
 
+def instance_volume(index):
+    """Render an index's instance ids as a ``[Z, Y, X]`` array.
+
+    Display only. The array lives in memory and the segmentation on disk is
+    untouched — it exists so one nucleus can be shown in one colour through
+    the stack. Built from the stored mapping rather than by stitching again,
+    so an index served from cache renders just as cheaply.
+    """
+    if index.masks is None:
+        raise ValueError(
+            "instance_volume needs the masks the index was built from."
+        )
+    masks = np.asarray(index.masks)
+
+    by_plane = {}
+    for (z, label), instance in index.plane_label_to_instance.items():
+        by_plane.setdefault(z, []).append((label, instance))
+
+    volume = np.zeros(masks.shape, dtype=np.int32)
+    for z, pairs in by_plane.items():
+        plane = masks[z]
+        lookup = np.zeros(int(plane.max()) + 1, dtype=np.int32)
+        for label, instance in pairs:
+            lookup[label] = instance
+        volume[z] = lookup[plane]
+    return volume
+
+
+def instance_counts(index):
+    """``(plane objects, instances)`` — how much the stitch collapsed."""
+    return (
+        len(index.plane_label_to_instance),
+        len(index.instance_to_planes),
+    )
+
+
 def _cache_key(segmentation_path, threshold):
     """Identity of a stitch result: which file, in which state, at which
     threshold. A re-segmented file or a retuned threshold simply misses."""

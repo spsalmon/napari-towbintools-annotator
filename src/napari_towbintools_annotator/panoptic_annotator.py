@@ -9,6 +9,7 @@ import tifffile
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
@@ -21,7 +22,12 @@ from qtpy.QtWidgets import (
 )
 
 from .colors import CLASS_PALETTE, hex_to_rgba_float
-from .stitching import centroid_table, get_instance_index
+from .stitching import (
+    centroid_table,
+    get_instance_index,
+    instance_counts,
+    instance_volume,
+)
 
 
 def _read_array(path):
@@ -143,6 +149,11 @@ def rows_to_points(
 
 _PLANE_AXIS = "Z"
 _DONE_COLOR = "#55A868"
+_OVERLAY_LAYER_NAME = "Stitched instances"
+
+
+def _plural(count, noun):
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 class PanopticAnnotatorWidget(QWidget):
@@ -194,6 +205,7 @@ class PanopticAnnotatorWidget(QWidget):
         # edits it makes itself.
         self._instance_index = None
         self._propagating = False
+        self._stitch_overlay_layer = None
         self._stitch_cache_dir = os.path.join(
             os.path.dirname(
                 os.path.join(project.project_dir, project.annotation_df_path)
@@ -238,19 +250,30 @@ class PanopticAnnotatorWidget(QWidget):
 
         # Z-stitching controls; only meaningful for 3D segmentations.
         self.stitch_widget = QWidget()
-        stitch_layout = QHBoxLayout()
+        stitch_layout = QVBoxLayout()
         self.stitch_widget.setLayout(stitch_layout)
-        stitch_layout.addWidget(QLabel("Stitch IoU"))
+        stitch_controls = QHBoxLayout()
+        stitch_layout.addLayout(stitch_controls)
+        stitch_controls.addWidget(QLabel("Stitch IoU"))
         self.stitch_threshold_spinbox = QDoubleSpinBox()
         self.stitch_threshold_spinbox.setRange(0.05, 0.95)
         self.stitch_threshold_spinbox.setSingleStep(0.05)
         self.stitch_threshold_spinbox.setValue(
             getattr(project, "stitch_threshold", 0.25)
         )
-        stitch_layout.addWidget(self.stitch_threshold_spinbox)
+        stitch_controls.addWidget(self.stitch_threshold_spinbox)
         self.restitch_button = QPushButton("Re-stitch")
         self.restitch_button.clicked.connect(self.restitch)
-        stitch_layout.addWidget(self.restitch_button)
+        stitch_controls.addWidget(self.restitch_button)
+        self.show_stitched_checkbox = QCheckBox("Show stitched")
+        self.show_stitched_checkbox.setToolTip(
+            "Display-only overlay: one colour per nucleus through the "
+            "stack. The segmentation on disk is never modified."
+        )
+        self.show_stitched_checkbox.toggled.connect(self._on_show_stitched)
+        stitch_controls.addWidget(self.show_stitched_checkbox)
+        self.stitch_readout_label = QLabel("")
+        stitch_layout.addWidget(self.stitch_readout_label)
         self.stitch_widget.setVisible(False)
         self.main_layout.addWidget(self.stitch_widget)
 
@@ -353,6 +376,7 @@ class PanopticAnnotatorWidget(QWidget):
             self._segmentation_layer.ndim != 3
         ):
             self._instance_index = None
+            self._refresh_stitch_feedback()
             return
         row = self.annotation_df.iloc[self.current_file_idx]
         self._instance_index = get_instance_index(
@@ -361,6 +385,7 @@ class PanopticAnnotatorWidget(QWidget):
             self.stitch_threshold_spinbox.value(),
             self._stitch_cache_dir,
         )
+        self._refresh_stitch_feedback()
 
     def _centroids(self):
         """Centroid table matching the current segmentation's dimensionality."""
@@ -466,6 +491,49 @@ class PanopticAnnotatorWidget(QWidget):
             self._propagating = False
         self._update_point_color()
 
+    # ----- stitch feedback -----
+    def _on_show_stitched(self, _checked):
+        self._refresh_stitch_feedback()
+
+    def _remove_stitch_overlay(self):
+        layer = self._stitch_overlay_layer
+        self._stitch_overlay_layer = None
+        if layer is not None and layer in self.viewer.layers:
+            self.viewer.layers.remove(layer)
+
+    def _refresh_stitch_feedback(self):
+        """Report what the current stitch did, in counts and in colour.
+
+        The overlay is a display-only volume of instance ids. The
+        segmentation layer keeps the values read from disk, because those
+        are what ``points_to_rows`` writes to the ``Label`` column.
+        """
+        self._remove_stitch_overlay()
+        if self._instance_index is None:
+            self.stitch_readout_label.setText("")
+            return
+
+        objects, instances = instance_counts(self._instance_index)
+        self.stitch_readout_label.setText(
+            f"{_plural(objects, 'object')} \u2192 "
+            f"{_plural(instances, 'instance')} "
+            f"@ IoU {self._instance_index.threshold:.2f}"
+        )
+
+        if not self.show_stitched_checkbox.isChecked():
+            return
+        layer = self.viewer.add_labels(
+            instance_volume(self._instance_index),
+            name=_OVERLAY_LAYER_NAME,
+            opacity=0.6,
+        )
+        self._stitch_overlay_layer = layer
+        # Keep it under the points, which would otherwise be hidden by it.
+        self.viewer.layers.move(
+            self.viewer.layers.index(layer),
+            self.viewer.layers.index(self._segmentation_layer) + 1,
+        )
+
     def restitch(self):
         """Rebuild identity at the current threshold, keeping placed dots."""
         self._build_instance_index()
@@ -502,6 +570,7 @@ class PanopticAnnotatorWidget(QWidget):
         self._reference_layer = None
         self._segmentation_layer = None
         self._annotation_layer = None
+        self._stitch_overlay_layer = None
 
         row = self.annotation_df.iloc[self.current_file_idx]
         reference_file = row["Reference"]
