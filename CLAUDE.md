@@ -15,7 +15,7 @@ is no `python` on `PATH`), and do not use the `napari` env for this project.
 micromamba run -n towbintools python -m pytest src/napari_towbintools_annotator/_tests/ -q
 ```
 
-The env already has napari 0.8.0 + PyQt5, `napari_guitils`, `natsort`, and this
+The env already has napari 0.9 + PyQt6, `napari_guitils`, `natsort`, and this
 package installed editable (`pip install -e . --no-deps`). If an import goes
 missing, install it into `towbintools` rather than switching envs.
 
@@ -71,9 +71,14 @@ types are reached through it — they do **not** add napari contributions.
   (it indexes the segmentation file on disk).
 - Style: black + ruff, **line length 79**, target py310. `E501` is ignored —
   let black wrap.
-- Tests use plain `pytest` with `tmp_path`; there is no `pytest-qt`. Viewer-
-  backed tests construct `napari.Viewer(show=False)` and `close()` it in a
-  `finally` block.
+- Tests use plain `pytest` with `tmp_path`; there is no `pytest-qt`. Widget
+  tests take the `viewer` fixture from `_tests/conftest.py` — a
+  `napari.components.ViewerModel` (no vispy canvas, so no OpenGL) — and the
+  conftest defaults `QT_QPA_PLATFORM=offscreen`. Do not construct
+  `napari.Viewer` in tests: it needs a GL context, which headless and macOS
+  CI runners do not reliably have.
+- `napari` and the Qt binding are test/`all` extras, not runtime deps; a
+  clean `pip install .[testing]` must be enough to run the suite.
 
 ## Git
 
