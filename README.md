@@ -1,11 +1,9 @@
 # napari-towbintools-annotator
 
-[![License BSD-3](https://img.shields.io/pypi/l/napari-towbintools-annotator.svg?color=green)](https://github.com/spsalmon/napari-towbintools-annotator/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/napari-towbintools-annotator.svg?color=green)](https://pypi.org/project/napari-towbintools-annotator)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-towbintools-annotator.svg?color=green)](https://python.org)
-[![tests](https://github.com/spsalmon/napari-towbintools-annotator/workflows/tests/badge.svg)](https://github.com/spsalmon/napari-towbintools-annotator/actions)
+[![License BSD-3](https://img.shields.io/github/license/spsalmon/napari-towbintools-annotator?color=green)](https://github.com/spsalmon/napari-towbintools-annotator/blob/main/LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
+[![tests](https://github.com/spsalmon/napari-towbintools-annotator/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)](https://github.com/spsalmon/napari-towbintools-annotator/actions/workflows/test_and_deploy.yml)
 [![codecov](https://codecov.io/gh/spsalmon/napari-towbintools-annotator/branch/main/graph/badge.svg)](https://codecov.io/gh/spsalmon/napari-towbintools-annotator)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-towbintools-annotator)](https://napari-hub.org/plugins/napari-towbintools-annotator)
 [![npe2](https://img.shields.io/badge/plugin-npe2-blue?link=https://napari.org/stable/plugins/index.html)](https://napari.org/stable/plugins/index.html)
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-purple.json)](https://github.com/copier-org/copier)
 
