@@ -3,11 +3,9 @@
 import numpy as np
 import pytest
 
-from napari_towbintools_annotator.stitching import (
-    build_instance_index,
-    instance_counts,
-    instance_volume,
-)
+from napari_towbintools_annotator.stitching import build_instance_index
+from napari_towbintools_annotator.stitching import instance_counts
+from napari_towbintools_annotator.stitching import instance_volume
 
 
 def _stepped_stack():

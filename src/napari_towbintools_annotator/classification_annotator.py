@@ -5,15 +5,13 @@ import imageio
 import pandas as pd
 import tifffile
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import (
-    QButtonGroup,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QButtonGroup
+from qtpy.QtWidgets import QLabel
+from qtpy.QtWidgets import QListWidget
+from qtpy.QtWidgets import QListWidgetItem
+from qtpy.QtWidgets import QPushButton
+from qtpy.QtWidgets import QVBoxLayout
+from qtpy.QtWidgets import QWidget
 
 from .colors import CLASS_PALETTE as _CLASS_PALETTE
 from .project import ClassificationProject
@@ -70,7 +68,11 @@ class ClassificationAnnotatorWidget(QWidget):
             for i, cls in enumerate(project.classes)
         }
 
-        self.annotation_df["Class"] = self.annotation_df["Class"].astype(str)
+        # fillna first: pandas >= 3 keeps NaN through astype(str), which
+        # would make unannotated rows look annotated.
+        self.annotation_df["Class"] = (
+            self.annotation_df["Class"].fillna("").astype(str)
+        )
 
         self.file_list_widget = QListWidget()
         self._populate_file_list()
@@ -83,6 +85,10 @@ class ClassificationAnnotatorWidget(QWidget):
         self._mask_layer = None
         self._write_lock = threading.Lock()
         self._pending_write = False
+        # Writes are numbered so a background writer that the OS schedules
+        # late never overwrites a newer snapshot already on disk.
+        self._write_generation = 0
+        self._written_generation = 0
 
         self.file_list_widget.setCurrentRow(self.current_file_idx)
         self._init_layers()
@@ -289,17 +295,25 @@ class ClassificationAnnotatorWidget(QWidget):
 
     def _save_sync(self):
         with self._write_lock:
+            self._write_generation += 1
             self._pending_write = False
             self.annotation_df.to_csv(self.annotation_df_path, index=False)
+            self._written_generation = self._write_generation
 
     def _save_async(self):
         snapshot = self.annotation_df.copy()
         path = self.annotation_df_path
+        self._write_generation += 1
+        generation = self._write_generation
 
         def write():
             with self._write_lock:
-                self._pending_write = False
+                if generation <= self._written_generation:
+                    return
+                if generation == self._write_generation:
+                    self._pending_write = False
                 snapshot.to_csv(path, index=False)
+                self._written_generation = generation
 
         self._pending_write = True
         threading.Thread(target=write, daemon=True).start()

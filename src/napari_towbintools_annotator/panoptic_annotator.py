@@ -7,27 +7,24 @@ import numpy as np
 import pandas as pd
 import tifffile
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import (
-    QButtonGroup,
-    QCheckBox,
-    QDoubleSpinBox,
-    QHBoxLayout,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QPushButton,
-    QRadioButton,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtWidgets import QButtonGroup
+from qtpy.QtWidgets import QCheckBox
+from qtpy.QtWidgets import QDoubleSpinBox
+from qtpy.QtWidgets import QHBoxLayout
+from qtpy.QtWidgets import QLabel
+from qtpy.QtWidgets import QListWidget
+from qtpy.QtWidgets import QListWidgetItem
+from qtpy.QtWidgets import QPushButton
+from qtpy.QtWidgets import QRadioButton
+from qtpy.QtWidgets import QVBoxLayout
+from qtpy.QtWidgets import QWidget
 
-from .colors import CLASS_PALETTE, hex_to_rgba_float
-from .stitching import (
-    centroid_table,
-    get_instance_index,
-    instance_counts,
-    instance_volume,
-)
+from .colors import CLASS_PALETTE
+from .colors import hex_to_rgba_float
+from .stitching import centroid_table
+from .stitching import get_instance_index
+from .stitching import instance_counts
+from .stitching import instance_volume
 
 
 def _read_array(path):
@@ -36,9 +33,9 @@ def _read_array(path):
     except Exception:  # noqa: BLE001
         return imageio.imread(path)
 
+
 def channel_axis_first(image, mask_shape):
-    """Move the axes around so that the mask Z sliders matches the image's Z slider.
-    """
+    """Move the axes around so that the mask Z sliders matches the image's Z slider."""
     mask_shape = tuple(mask_shape)
     if image.ndim != len(mask_shape) + 1:
         return image
@@ -225,8 +222,7 @@ class PanopticAnnotatorWidget(QWidget):
             for i in range(len(self.classes))
         }
         self.class_name_to_color = {
-            c: self.class_id_to_color[i]
-            for i, c in enumerate(self.classes)
+            c: self.class_id_to_color[i] for i, c in enumerate(self.classes)
         }
         self.selected_class = self.classes[0] if self.classes else None
 
@@ -236,6 +232,10 @@ class PanopticAnnotatorWidget(QWidget):
         self._annotation_layer = None
         self._write_lock = threading.Lock()
         self._pending_write = False
+        # Writes are numbered so a background writer that the OS schedules
+        # late never overwrites a newer snapshot already on disk.
+        self._write_generation = 0
+        self._written_generation = 0
 
         # Cross-plane identity for the current z-stack (None in 2D). Set in
         # _load_file; _propagating guards the points handler against the
@@ -375,9 +375,9 @@ class PanopticAnnotatorWidget(QWidget):
     def _cycle_class(self, delta):
         if not self.classes:
             return
-        idx = (
-            self.classes.index(self.selected_class) + delta
-        ) % len(self.classes)
+        idx = (self.classes.index(self.selected_class) + delta) % len(
+            self.classes
+        )
         self.selected_class = self.classes[idx]
         for button in self.class_buttons.buttons():
             if button.text() == self.selected_class:
@@ -388,9 +388,9 @@ class PanopticAnnotatorWidget(QWidget):
         if self._annotation_layer is None or self.selected_class is None:
             return
         self._annotation_layer.selected_data = set()
-        self._annotation_layer.current_face_color = (
-            self.class_name_to_color[self.selected_class]
-        )
+        self._annotation_layer.current_face_color = self.class_name_to_color[
+            self.selected_class
+        ]
 
     # ----- file loading -----
     def _plane_axis(self):
@@ -430,9 +430,7 @@ class PanopticAnnotatorWidget(QWidget):
             return self._instance_index.centroids
         if self._segmentation_layer is None:
             return {}
-        return centroid_table(
-            np.asarray(self._segmentation_layer.data)[None]
-        )
+        return centroid_table(np.asarray(self._segmentation_layer.data)[None])
 
     def _instance_of_point(self, point):
         return self._instance_index.instance_at(
@@ -733,17 +731,25 @@ class PanopticAnnotatorWidget(QWidget):
 
     def _save_master_sync(self):
         with self._write_lock:
+            self._write_generation += 1
             self._pending_write = False
             self.annotation_df.to_csv(self.annotation_df_path, index=False)
+            self._written_generation = self._write_generation
 
     def _save_master_async(self):
         snapshot = self.annotation_df.copy()
         path = self.annotation_df_path
+        self._write_generation += 1
+        generation = self._write_generation
 
         def write():
             with self._write_lock:
-                self._pending_write = False
+                if generation <= self._written_generation:
+                    return
+                if generation == self._write_generation:
+                    self._pending_write = False
                 snapshot.to_csv(path, index=False)
+                self._written_generation = generation
 
         self._pending_write = True
         threading.Thread(target=write, daemon=True).start()

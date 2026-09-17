@@ -3,18 +3,17 @@ import pandas as pd
 import pytest
 import tifffile
 
-from napari_towbintools_annotator.colors import (
-    CLASS_PALETTE,
-    class_hex,
-    hex_to_rgba_float,
-)
+from napari_towbintools_annotator.colors import CLASS_PALETTE
+from napari_towbintools_annotator.colors import class_hex
+from napari_towbintools_annotator.colors import hex_to_rgba_float
 from napari_towbintools_annotator.panoptic_annotator import (
     PanopticAnnotatorWidget,
-    nearest_class_id,
-    points_to_rows,
-    rows_to_points,
 )
-from napari_towbintools_annotator.project import PanopticProject, Project
+from napari_towbintools_annotator.panoptic_annotator import nearest_class_id
+from napari_towbintools_annotator.panoptic_annotator import points_to_rows
+from napari_towbintools_annotator.panoptic_annotator import rows_to_points
+from napari_towbintools_annotator.project import PanopticProject
+from napari_towbintools_annotator.project import Project
 from napari_towbintools_annotator.project_creator import scan_panoptic_files
 
 
@@ -350,31 +349,23 @@ def test_run_panoptic_creation_persists_stitch_threshold(tmp_path):
     assert Project.load(str(project_dir)).stitch_threshold == 0.35
 
 
-def test_creator_shows_stitch_threshold_only_for_panoptic():
-    import napari
-
+def test_creator_shows_stitch_threshold_only_for_panoptic(viewer):
     from napari_towbintools_annotator.project_creator import (
         ProjectCreatorWidget,
     )
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = ProjectCreatorWidget(viewer)
+    widget = ProjectCreatorWidget(viewer)
 
-        widget.project_type_panoptic.setChecked(True)
-        widget.toggle_project_type_options()
-        assert widget.stitch_threshold_group.gbox.isVisibleTo(widget)
+    widget.project_type_panoptic.setChecked(True)
+    widget.toggle_project_type_options()
+    assert widget.stitch_threshold_group.gbox.isVisibleTo(widget)
 
-        widget.project_type_classification.setChecked(True)
-        widget.toggle_project_type_options()
-        assert not widget.stitch_threshold_group.gbox.isVisibleTo(widget)
-    finally:
-        viewer.close()
+    widget.project_type_classification.setChecked(True)
+    widget.toggle_project_type_options()
+    assert not widget.stitch_threshold_group.gbox.isVisibleTo(widget)
 
 
-def test_panoptic_widget_load_and_save(tmp_path):
-    import napari
-
+def test_panoptic_widget_load_and_save(tmp_path, viewer):
     project_dir = tmp_path / "proj"
     annotations_dir = project_dir / "annotations"
     annotations_dir.mkdir(parents=True)
@@ -406,21 +397,17 @@ def test_panoptic_widget_load_and_save(tmp_path):
         project_dir=str(project_dir),
     )
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(viewer, project)
-        assert widget.file_list_widget.count() == 1
-        assert widget._annotation_layer is not None
+    widget = PanopticAnnotatorWidget(viewer, project)
+    assert widget.file_list_widget.count() == 1
+    assert widget._annotation_layer is not None
 
-        # Drop one point on instance 5, colored as class 0 ("a").
-        widget._annotation_layer.data = np.array([[3, 3]])
-        widget._annotation_layer.face_color = np.array(
-            [widget.class_id_to_color[0]], dtype=float
-        )
-        widget.save_annotations()
-        widget._save_master_sync()
-    finally:
-        viewer.close()
+    # Drop one point on instance 5, colored as class 0 ("a").
+    widget._annotation_layer.data = np.array([[3, 3]])
+    widget._annotation_layer.face_color = np.array(
+        [widget.class_id_to_color[0]], dtype=float
+    )
+    widget.save_annotations()
+    widget._save_master_sync()
 
     out_csv = annotations_dir / "img.csv"
     assert out_csv.exists()
@@ -433,11 +420,9 @@ def test_panoptic_widget_load_and_save(tmp_path):
     assert str(master.loc[0, "Annotation"]) == str(out_csv)
 
 
-def test_panoptic_autosaves_on_navigation(tmp_path):
+def test_panoptic_autosaves_on_navigation(tmp_path, viewer):
     """Navigating to another image persists the current annotations without
     an explicit Save, but only when points were actually placed."""
-    import napari
-
     project_dir = tmp_path / "proj"
     annotations_dir = project_dir / "annotations"
     annotations_dir.mkdir(parents=True)
@@ -473,36 +458,34 @@ def test_panoptic_autosaves_on_navigation(tmp_path):
         project_dir=str(project_dir),
     )
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(viewer, project)
-        assert widget.current_file_idx == 0
+    widget = PanopticAnnotatorWidget(viewer, project)
+    assert widget.current_file_idx == 0
 
-        # Place a point on instance 5 of the first image, then navigate.
-        widget._annotation_layer.data = np.array([[3, 3]])
-        widget._annotation_layer.face_color = np.array(
-            [widget.class_id_to_color[0]], dtype=float
-        )
-        widget.next_file()
-        widget._save_master_sync()
+    # Place a point on instance 5 of the first image, then navigate.
+    widget._annotation_layer.data = np.array([[3, 3]])
+    widget._annotation_layer.face_color = np.array(
+        [widget.class_id_to_color[0]], dtype=float
+    )
+    widget.next_file()
+    widget._save_master_sync()
 
-        out_csv = annotations_dir / "img0.csv"
-        assert out_csv.exists(), "navigating should autosave the first image"
-        saved = pd.read_csv(out_csv)
-        assert int(saved.loc[0, "Label"]) == 5
-        assert saved.loc[0, "Class"] == "a"
+    out_csv = annotations_dir / "img0.csv"
+    assert out_csv.exists(), "navigating should autosave the first image"
+    saved = pd.read_csv(out_csv)
+    assert int(saved.loc[0, "Label"]) == 5
+    assert saved.loc[0, "Class"] == "a"
 
-        # The second image had no points placed; navigating back must not
-        # mark it as done (no per-image CSV, master Annotation stays empty).
-        assert widget.current_file_idx == 1
-        widget.previous_file()
-        widget._save_master_sync()
-        assert not (annotations_dir / "img1.csv").exists()
-    finally:
-        viewer.close()
+    # The second image had no points placed; navigating back must not
+    # mark it as done (no per-image CSV, master Annotation stays empty).
+    assert widget.current_file_idx == 1
+    widget.previous_file()
+    widget._save_master_sync()
+    assert not (annotations_dir / "img1.csv").exists()
 
     master = pd.read_csv(annotations_dir / "annotations.csv")
-    assert str(master.loc[0, "Annotation"]) == str(annotations_dir / "img0.csv")
+    assert str(master.loc[0, "Annotation"]) == str(
+        annotations_dir / "img0.csv"
+    )
     assert str(master.loc[1, "Annotation"]).strip() in ("", "nan", "None")
 
 
@@ -514,12 +497,12 @@ def _displayed_mask_slice(layer):
     ("ref_shape", "channel_axis"),
     [((2, 5, 10, 10), 0), ((5, 2, 10, 10), 1)],
 )
-def test_panoptic_zstack_mask_z_tracks_image_z(tmp_path, ref_shape, channel_axis):
+def test_panoptic_zstack_mask_z_tracks_image_z(
+    tmp_path, ref_shape, channel_axis, viewer
+):
     """A 4D reference with a channel axis (in any position) must overlay a
     [Z, Y, X] mask so the mask's Z follows the image's Z slider, not the
     channel slider (regression)."""
-    import napari
-
     project_dir = tmp_path / "proj"
     annotations_dir = project_dir / "annotations"
     annotations_dir.mkdir(parents=True)
@@ -554,31 +537,25 @@ def test_panoptic_zstack_mask_z_tracks_image_z(tmp_path, ref_shape, channel_axis
         project_dir=str(project_dir),
     )
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(viewer, project)
-        # Stay 4D: channel keeps its own slider.
-        assert viewer.dims.ndim == 4
-        seg_layer = widget._segmentation_layer
+    widget = PanopticAnnotatorWidget(viewer, project)
+    # Stay 4D: channel keeps its own slider.
+    assert viewer.dims.ndim == 4
+    seg_layer = widget._segmentation_layer
 
-        # World axis 0 is the channel slider; world axis 1 is Z. Moving the
-        # channel slider must NOT change the mask slice; moving Z must.
-        viewer.dims.current_step = (0, 0, 0, 0)
-        z0 = np.unique(_displayed_mask_slice(seg_layer))
-        viewer.dims.current_step = (1, 0, 0, 0)  # change channel
-        assert np.array_equal(np.unique(_displayed_mask_slice(seg_layer)), z0)
-        viewer.dims.current_step = (0, 3, 0, 0)  # change Z
-        z3 = np.unique(_displayed_mask_slice(seg_layer))
-        assert not np.array_equal(z3, z0)
-        assert z3.tolist() == [4]  # Z plane index 3 -> label 4
-    finally:
-        viewer.close()
+    # World axis 0 is the channel slider; world axis 1 is Z. Moving the
+    # channel slider must NOT change the mask slice; moving Z must.
+    viewer.dims.current_step = (0, 0, 0, 0)
+    z0 = np.unique(_displayed_mask_slice(seg_layer))
+    viewer.dims.current_step = (1, 0, 0, 0)  # change channel
+    assert np.array_equal(np.unique(_displayed_mask_slice(seg_layer)), z0)
+    viewer.dims.current_step = (0, 3, 0, 0)  # change Z
+    z3 = np.unique(_displayed_mask_slice(seg_layer))
+    assert not np.array_equal(z3, z0)
+    assert z3.tolist() == [4]  # Z plane index 3 -> label 4
 
 
-def test_panoptic_widget_save_empty_then_reload(tmp_path):
+def test_panoptic_widget_save_empty_then_reload(tmp_path, viewer):
     """Saving with no points must not crash on subsequent reload (regression)."""
-    import napari
-
     project_dir = tmp_path / "proj"
     annotations_dir = project_dir / "annotations"
     annotations_dir.mkdir(parents=True)
@@ -610,31 +587,29 @@ def test_panoptic_widget_save_empty_then_reload(tmp_path):
         project_dir=str(project_dir),
     )
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(viewer, project)
+    widget = PanopticAnnotatorWidget(viewer, project)
 
-        # Save with NO annotation points placed.
-        widget.save_annotations()
-        widget._save_master_sync()
+    # Save with NO annotation points placed.
+    widget.save_annotations()
+    widget._save_master_sync()
 
-        out_csv = annotations_dir / "img.csv"
-        assert out_csv.exists(), "per-image CSV should be written even with no points"
+    out_csv = annotations_dir / "img.csv"
+    assert (
+        out_csv.exists()
+    ), "per-image CSV should be written even with no points"
 
-        saved = pd.read_csv(out_csv)
-        # Header columns must be present (not an empty/headerless file).
-        assert list(saved.columns) == ["Label", "ClassID", "Class"]
-        assert len(saved) == 0
+    saved = pd.read_csv(out_csv)
+    # Header columns must be present (not an empty/headerless file).
+    assert list(saved.columns) == ["Label", "ClassID", "Class"]
+    assert len(saved) == 0
 
-        # Master index must record the annotation path.
-        master = pd.read_csv(annotations_dir / "annotations.csv")
-        assert str(master.loc[0, "Annotation"]) == str(out_csv)
+    # Master index must record the annotation path.
+    master = pd.read_csv(annotations_dir / "annotations.csv")
+    assert str(master.loc[0, "Annotation"]) == str(out_csv)
 
-        # Reload the same file — must NOT raise EmptyDataError.
-        widget._load_file()
+    # Reload the same file — must NOT raise EmptyDataError.
+    widget._load_file()
 
-        # After reload the annotation layer must be empty.
-        assert widget._annotation_layer is not None
-        assert len(widget._annotation_layer.data) == 0
-    finally:
-        viewer.close()
+    # After reload the annotation layer must be empty.
+    assert widget._annotation_layer is not None
+    assert len(widget._annotation_layer.data) == 0

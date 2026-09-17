@@ -58,14 +58,8 @@ def _make_project(tmp_path, threshold=0.25, segmentation=None):
 
 
 @pytest.fixture
-def widget(tmp_path):
-    import napari
-
-    viewer = napari.Viewer(show=False)
-    try:
-        yield PanopticAnnotatorWidget(viewer, _make_project(tmp_path))
-    finally:
-        viewer.close()
+def widget(tmp_path, viewer):
+    yield PanopticAnnotatorWidget(viewer, _make_project(tmp_path))
 
 
 def _planes(layer):
@@ -218,58 +212,48 @@ def test_saved_annotations_reload_onto_every_plane(widget):
     assert _planes(widget._annotation_layer) == [0, 1, 2]
 
 
-def test_restitching_at_a_higher_threshold_splits_the_nucleus(tmp_path):
+def test_restitching_at_a_higher_threshold_splits_the_nucleus(
+    tmp_path, viewer
+):
     """A threshold the planes cannot meet stops them being one instance.
 
     The blocks step across planes so consecutive IoU is 1/3: linked at the
     0.25 default, separate once the threshold is raised past it.
     """
-    import napari
-
     seg = np.zeros((4, 20, 20), dtype=np.uint16)
     seg[0, 2:6, 2:6] = 1
     seg[1, 4:8, 2:6] = 5
     seg[2, 6:10, 2:6] = 2
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(
-            viewer, _make_project(tmp_path, segmentation=seg)
-        )
-        _click(widget, 1, 5, 3)
-        assert _planes(widget._annotation_layer) == [0, 1, 2]
+    widget = PanopticAnnotatorWidget(
+        viewer, _make_project(tmp_path, segmentation=seg)
+    )
+    _click(widget, 1, 5, 3)
+    assert _planes(widget._annotation_layer) == [0, 1, 2]
 
-        widget.stitch_threshold_spinbox.setValue(0.95)
-        widget.restitch()
+    widget.stitch_threshold_spinbox.setValue(0.95)
+    widget.restitch()
 
-        widget._set_points([], [])
-        _click(widget, 1, 5, 3)
-        assert _planes(widget._annotation_layer) == [1]
-    finally:
-        viewer.close()
+    widget._set_points([], [])
+    _click(widget, 1, 5, 3)
+    assert _planes(widget._annotation_layer) == [1]
 
 
-def test_two_dimensional_project_is_unaffected(tmp_path):
+def test_two_dimensional_project_is_unaffected(tmp_path, viewer):
     """2D panoptic annotation must behave exactly as before."""
-    import napari
-
     seg = np.zeros((20, 20), dtype=np.uint16)
     seg[2:6, 2:6] = 5
     project = _make_project(tmp_path, segmentation=seg)
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(viewer, project)
-        assert widget._instance_index is None
+    widget = PanopticAnnotatorWidget(viewer, project)
+    assert widget._instance_index is None
 
-        widget._annotation_layer.data = np.array([[3, 3]])
-        widget._annotation_layer.face_color = np.array(
-            [widget.class_id_to_color[0]], dtype=float
-        )
-        widget.save_annotations()
-        widget._save_master_sync()
-    finally:
-        viewer.close()
+    widget._annotation_layer.data = np.array([[3, 3]])
+    widget._annotation_layer.face_color = np.array(
+        [widget.class_id_to_color[0]], dtype=float
+    )
+    widget.save_annotations()
+    widget._save_master_sync()
 
     saved = pd.read_csv(tmp_path / "proj" / "annotations" / "img.csv")
     assert list(saved.columns) == ["Label", "ClassID", "Class"]

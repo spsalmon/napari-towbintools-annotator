@@ -154,9 +154,7 @@ class PanopticProject(Project):
         stitch_threshold: float = 0.25,
     ):
         if not classes:
-            raise ValueError(
-                "Classes must be provided for panoptic projects."
-            )
+            raise ValueError("Classes must be provided for panoptic projects.")
         if not data_directories:
             raise ValueError(
                 "data_directories must be provided for panoptic projects."

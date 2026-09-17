@@ -6,10 +6,8 @@ import pytest
 from napari_towbintools_annotator.panoptic_annotator import (
     PanopticAnnotatorWidget,
 )
-from napari_towbintools_annotator.stitching import (
-    build_instance_index,
-    instance_volume,
-)
+from napari_towbintools_annotator.stitching import build_instance_index
+from napari_towbintools_annotator.stitching import instance_volume
 
 from .test_panoptic_propagation import _make_project
 
@@ -26,16 +24,10 @@ def _stepped_stack():
 
 
 @pytest.fixture
-def widget(tmp_path):
-    import napari
-
-    viewer = napari.Viewer(show=False)
-    try:
-        yield PanopticAnnotatorWidget(
-            viewer, _make_project(tmp_path, segmentation=_stepped_stack())
-        )
-    finally:
-        viewer.close()
+def widget(tmp_path, viewer):
+    yield PanopticAnnotatorWidget(
+        viewer, _make_project(tmp_path, segmentation=_stepped_stack())
+    )
 
 
 def test_readout_reports_the_collapse_after_loading_a_file(widget):
@@ -111,18 +103,12 @@ def test_the_overlay_matches_the_index_it_was_built_from(widget):
     )
 
 
-def test_two_dimensional_projects_get_no_stitch_feedback(tmp_path):
-    import napari
-
+def test_two_dimensional_projects_get_no_stitch_feedback(tmp_path, viewer):
     seg = np.zeros((20, 20), dtype=np.uint16)
     seg[2:6, 2:6] = 5
 
-    viewer = napari.Viewer(show=False)
-    try:
-        widget = PanopticAnnotatorWidget(
-            viewer, _make_project(tmp_path, segmentation=seg)
-        )
-        assert not widget.stitch_widget.isVisible()
-        assert _OVERLAY not in viewer.layers
-    finally:
-        viewer.close()
+    widget = PanopticAnnotatorWidget(
+        viewer, _make_project(tmp_path, segmentation=seg)
+    )
+    assert not widget.stitch_widget.isVisible()
+    assert _OVERLAY not in viewer.layers

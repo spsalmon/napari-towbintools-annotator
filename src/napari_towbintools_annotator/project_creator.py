@@ -7,27 +7,29 @@ import numpy as np
 import pandas as pd
 from napari_guitils.gui_structures import VHGroup
 from natsort import natsorted
-from qtpy.QtCore import QThread, QTimer, Signal
-from qtpy.QtWidgets import (
-    QButtonGroup,
-    QCheckBox,
-    QDoubleSpinBox,
-    QFileDialog,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QListWidget,
-    QMessageBox,
-    QPushButton,
-    QRadioButton,
-    QScrollArea,
-    QVBoxLayout,
-    QWidget,
-)
+from qtpy.QtCore import QThread
+from qtpy.QtCore import QTimer
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QButtonGroup
+from qtpy.QtWidgets import QCheckBox
+from qtpy.QtWidgets import QDoubleSpinBox
+from qtpy.QtWidgets import QFileDialog
+from qtpy.QtWidgets import QHBoxLayout
+from qtpy.QtWidgets import QLabel
+from qtpy.QtWidgets import QLineEdit
+from qtpy.QtWidgets import QListWidget
+from qtpy.QtWidgets import QMessageBox
+from qtpy.QtWidgets import QPushButton
+from qtpy.QtWidgets import QRadioButton
+from qtpy.QtWidgets import QScrollArea
+from qtpy.QtWidgets import QVBoxLayout
+from qtpy.QtWidgets import QWidget
 
 from .classification_annotator import ClassificationAnnotatorWidget
 from .panoptic_annotator import PanopticAnnotatorWidget
-from .project import ClassificationProject, PanopticProject, Project
+from .project import ClassificationProject
+from .project import PanopticProject
+from .project import Project
 
 
 def convert_path_to_dir_name(path):

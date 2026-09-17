@@ -5,6 +5,8 @@ import pytest
 
 from napari_towbintools_annotator.panoptic_annotator import (
     PanopticAnnotatorWidget,
+)
+from napari_towbintools_annotator.panoptic_annotator import (
     majority_class_colors,
 )
 from napari_towbintools_annotator.stitching import build_instance_index
@@ -59,9 +61,7 @@ def test_a_tie_goes_to_the_most_recently_placed_dot():
     index = build_instance_index(_stepped_stack(), threshold=0.25)
     points = [(0, 3, 3), (1, 5, 3)]
 
-    colors = majority_class_colors(
-        points, [_RED, _BLUE], index, _ID_TO_COLOR
-    )
+    colors = majority_class_colors(points, [_RED, _BLUE], index, _ID_TO_COLOR)
 
     assert np.allclose(colors, [_BLUE, _BLUE])
 
@@ -69,9 +69,7 @@ def test_a_tie_goes_to_the_most_recently_placed_dot():
 def test_a_dot_on_background_keeps_its_own_color():
     index = build_instance_index(_stepped_stack(), threshold=0.25)
 
-    colors = majority_class_colors(
-        [(0, 18, 18)], [_BLUE], index, _ID_TO_COLOR
-    )
+    colors = majority_class_colors([(0, 18, 18)], [_BLUE], index, _ID_TO_COLOR)
 
     assert np.allclose(colors, [_BLUE])
 
@@ -104,20 +102,12 @@ def _planes(layer):
 
 
 @pytest.fixture
-def widget(tmp_path):
+def widget(tmp_path, viewer):
     """Annotator on the stepped stack, starting with the blocks unlinked."""
-    import napari
-
-    viewer = napari.Viewer(show=False)
-    try:
-        yield PanopticAnnotatorWidget(
-            viewer,
-            _make_project(
-                tmp_path, threshold=0.95, segmentation=_stepped_stack()
-            ),
-        )
-    finally:
-        viewer.close()
+    yield PanopticAnnotatorWidget(
+        viewer,
+        _make_project(tmp_path, threshold=0.95, segmentation=_stepped_stack()),
+    )
 
 
 def _annotate_blocks_a_b_a(widget):

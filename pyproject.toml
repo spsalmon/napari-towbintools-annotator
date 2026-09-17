@@ -29,6 +29,8 @@ dependencies = [
     "pandas",
     "napari_guitils",
     "natsort",
+    "pyyaml",
+    "qtpy",
     "scikit-image",
     "scipy",
     "tifffile",
@@ -40,6 +42,11 @@ testing = [
     "tox",
     "pytest",  # https://docs.pytest.org/en/latest/contents.html
     "pytest-cov",  # https://pytest-cov.readthedocs.io/en/latest/
+    "napari",
+    "pyqt6",
+]
+all = [
+    "napari[all]",
 ]
 
 [project.entry-points."napari.manifest"]
@@ -65,6 +72,14 @@ where = ["src"]
 "*" = ["*.yaml"]
 
 
+[tool.pytest.ini_options]
+testpaths = ["src/napari_towbintools_annotator/_tests"]
+
+[tool.coverage.run]
+source = ["napari_towbintools_annotator"]
+omit = ["*/_tests/*", "*/_version.py"]
+
+
 [tool.setuptools_scm]
 write_to = "src/napari_towbintools_annotator/_version.py"
 fallback_version = "0.0.1+nogit"
@@ -73,6 +88,14 @@ fallback_version = "0.0.1+nogit"
 [tool.black]
 line-length = 79
 target-version = ['py310', 'py311', 'py312', 'py313']
+
+[tool.isort]
+# black-compatible import sorting. force_single_line keeps the one-import-per-line
+# style; reorder-python-imports was dropped because it strips the blank line
+# after a module docstring that Black re-adds.
+profile = "black"
+force_single_line = true
+line_length = 79
 
 [tool.ruff]
 line-length = 79
