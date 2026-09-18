@@ -3,16 +3,16 @@ name = "napari-towbintools-annotator"
 dynamic = ["version"]
 description = "An annotator plugin to use with towbintools_pipeline"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [
-  {name = "Sacha Psalmon"},
-  {email = "sacha.psalmon@unibe.ch"},
+  {name = "Sacha Psalmon", email = "sacha.psalmon@unibe.ch"},
 ]
+keywords = ["napari", "annotation", "segmentation", "classification", "microscopy"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Framework :: napari",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
+    "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -54,12 +54,12 @@ napari-towbintools-annotator = "napari_towbintools_annotator:napari.yaml"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/spsalmon/napari-towbintools-annotator/issues"
-"Documentation" = "https://github.com/spsalmon/napari-towbintools-annotator#README.md"
+"Documentation" = "https://github.com/spsalmon/napari-towbintools-annotator#readme"
 "Source Code" = "https://github.com/spsalmon/napari-towbintools-annotator"
 "User Support" = "https://github.com/spsalmon/napari-towbintools-annotator/issues"
 
 [build-system]
-requires = ["setuptools>=42.0.0", "wheel", "setuptools_scm"]
+requires = ["setuptools>=77.0.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -81,7 +81,7 @@ omit = ["*/_tests/*", "*/_version.py"]
 
 
 [tool.setuptools_scm]
-write_to = "src/napari_towbintools_annotator/_version.py"
+version_file = "src/napari_towbintools_annotator/_version.py"
 fallback_version = "0.0.1+nogit"
 
 

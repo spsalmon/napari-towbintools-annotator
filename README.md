@@ -7,61 +7,95 @@
 [![npe2](https://img.shields.io/badge/plugin-npe2-blue?link=https://napari.org/stable/plugins/index.html)](https://napari.org/stable/plugins/index.html)
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-purple.json)](https://github.com/copier-org/copier)
 
-An annotator plugin to use with towbintools_pipeline
+A [napari] plugin for building annotated datasets for
+[towbintools_pipeline](https://github.com/spsalmon/towbintools_pipeline).
+Annotation work is organised into *projects*: a directory holding a
+`project.yaml` descriptor and a master annotation CSV, so a session can be
+closed and resumed at any time.
 
 ----------------------------------
 
-This [napari] plugin was generated with [copier] using the [napari-plugin-template].
-
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/napari-plugin-template#getting-started
-
-and review the napari docs for plugin developers:
-https://napari.org/stable/plugins/index.html
--->
-
 ## Installation
 
-You can install `napari-towbintools-annotator` via [pip]:
+Install the plugin into an environment that has napari and a Qt binding:
 
     pip install napari-towbintools-annotator
 
+or, to get napari and PyQt together:
 
+    pip install "napari-towbintools-annotator[all]"
 
-To install latest development version :
+The plugin can also be installed from napari's plugin manager
+(`Plugins > Install/Uninstall Plugins...`).
+
+To install the latest development version:
 
     pip install git+https://github.com/spsalmon/napari-towbintools-annotator.git
 
+## Usage
+
+Open napari and start the widget from
+`Plugins > Towbintools Annotator`. From there you can either
+**Create Project** or **Load Project** (pick a directory containing a
+`project.yaml`).
+
+When creating a project you choose a name, a location, the image type
+(multichannel, z-stack or time series), the data directories, and
+optionally whether the data should be copied into the project. Two project
+types are currently supported:
+
+### Classification
+
+Assign one class to each whole image.
+
+- Define the list of classes, and choose whether to display the image, its
+  mask, or both (masks require mask directories).
+- Click a class button to label the current image and move to the next
+  one. **Ignore** removes the current image from the project.
+- Labels are written to `annotations/annotations.csv`, with one row per
+  image (`ImagePath`, `MaskPath`, `Class`).
+
+### Panoptic
+
+Assign a class to each segmented instance of an image.
+
+- Requires raw image directories and matching segmentation (label)
+  directories, plus a list of classes.
+- Select a class, then place a point on an instance to label it. For
+  z-stacks, instances are linked across planes (stitched by IoU, threshold
+  adjustable with **Re-stitch**) so a label placed on one plane propagates to
+  the rest of the object.
+- Keyboard shortcuts: `J` next image, `H` previous image, `S` save.
+- The master CSV lists `Reference`, `Segmentation` and `Annotation` paths;
+  each per-image annotation file has one row per labelled instance
+  (`Label`, `ClassID`, `Class`, plus `Z` and `InstanceID` for z-stacks).
+  `Label` is the value of the instance in the segmentation file.
+
+The *Keypoint* project type is shown in the creator but is not supported
+yet.
 
 ## Contributing
 
-Contributions are very welcome. Tests can be run with [tox], please ensure
-the coverage at least stays the same before you submit a pull request.
+Contributions are very welcome. Tests can be run with [tox] or directly with
+`pytest` after `pip install -e ".[testing]"`; please ensure the coverage at
+least stays the same before you submit a pull request.
 
 ## License
 
 Distributed under the terms of the [BSD-3] license,
-"napari-towbintools-annotator" is free and open source software
+"napari-towbintools-annotator" is free and open source software.
 
 ## Issues
 
-If you encounter any problems, please [file an issue] along with a detailed description.
+If you encounter any problems, please [file an issue] along with a detailed
+description.
+
+This [napari] plugin was generated with [copier] using the
+[napari-plugin-template].
 
 [napari]: https://github.com/napari/napari
 [copier]: https://copier.readthedocs.io/en/stable/
-[@napari]: https://github.com/napari
-[MIT]: http://opensource.org/licenses/MIT
 [BSD-3]: http://opensource.org/licenses/BSD-3-Clause
-[GNU GPL v3.0]: http://www.gnu.org/licenses/gpl-3.0.txt
-[GNU LGPL v3.0]: http://www.gnu.org/licenses/lgpl-3.0.txt
-[Apache Software License 2.0]: http://www.apache.org/licenses/LICENSE-2.0
-[Mozilla Public License 2.0]: https://www.mozilla.org/media/MPL/2.0/index.txt
 [napari-plugin-template]: https://github.com/napari/napari-plugin-template
-
 [file an issue]: https://github.com/spsalmon/napari-towbintools-annotator/issues
-
-[napari]: https://github.com/napari/napari
 [tox]: https://tox.readthedocs.io/en/latest/
-[pip]: https://pypi.org/project/pip/
-[PyPI]: https://pypi.org/
