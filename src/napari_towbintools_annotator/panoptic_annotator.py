@@ -242,6 +242,9 @@ class PanopticAnnotatorWidget(QWidget):
         # edits it makes itself.
         self._instance_index = None
         self._propagating = False
+        # Number of points as of the last change we saw, so a newly added
+        # point can be told apart from the ones already placed.
+        self._point_count = 0
         self._stitch_overlay_layer = None
         self._stitch_cache_dir = os.path.join(
             os.path.dirname(
@@ -403,6 +406,7 @@ class PanopticAnnotatorWidget(QWidget):
         self._annotation_layer = self.viewer.add_points(
             np.zeros((0, ndim)), name="Annotations", ndim=ndim, size=10
         )
+        self._point_count = 0
         self._annotation_layer.events.data.connect(self._on_points_changed)
         self._update_point_color()
 
@@ -443,29 +447,38 @@ class PanopticAnnotatorWidget(QWidget):
         Only additions are acted on. Deletions are deliberately left alone so
         that removing a dot trims an over-eager stitch, and moves are ignored
         because saving resolves whatever label a point finally sits on.
+
+        Which points are new is worked out from how much the layer grew, not
+        from the event's ``data_indices``: napari 0.6.x reports one index per
+        *coordinate* of the added point, so a 3D click announces
+        ``(-3, -2, -1)``. Read as point indices those cover the whole of a
+        three-point layer, which made every click discard the annotations
+        placed before it.
         """
-        if self._propagating or self._instance_index is None:
+        if self._propagating:
+            return
+        layer = self._annotation_layer
+        if layer is None:
+            return
+
+        data = np.asarray(layer.data)
+        previous_count, self._point_count = self._point_count, len(data)
+        if self._instance_index is None:
             return
         action = getattr(event, "action", None)
         if getattr(action, "value", action) != "added":
             return
 
-        layer = self._annotation_layer
-        data = np.asarray(layer.data)
-        if len(data) == 0:
+        # Points are appended, so whatever is new sits at the end. If the
+        # count says nothing was added there is nothing to propagate — and
+        # nothing to remove either.
+        n_added = len(data) - previous_count
+        if n_added <= 0:
             return
 
-        # The added points are the trailing ones; a click adds exactly one.
-        indices = getattr(event, "data_indices", (-1,))
-        added = sorted({int(i) % len(data) for i in indices})
-        if not added:
-            return
-        clicked = data[added[-1]]
+        keep = np.arange(len(data) - n_added, dtype=int)
+        clicked = data[-1]
         instance = self._instance_of_point(clicked)
-
-        keep = np.array(
-            [i for i in range(len(data)) if i not in set(added)], dtype=int
-        )
         if instance is None:
             # Landed on background: it can never produce a row, so drop it
             # rather than leave a dot that looks annotated.
@@ -524,6 +537,7 @@ class PanopticAnnotatorWidget(QWidget):
             layer.selected_data = set()
         finally:
             self._propagating = False
+        self._point_count = len(np.asarray(layer.data))
         self._update_point_color()
 
     # ----- stitch feedback -----

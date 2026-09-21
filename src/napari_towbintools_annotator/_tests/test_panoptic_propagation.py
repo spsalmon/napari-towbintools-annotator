@@ -258,3 +258,70 @@ def test_two_dimensional_project_is_unaffected(tmp_path, viewer):
     saved = pd.read_csv(tmp_path / "proj" / "annotations" / "img.csv")
     assert list(saved.columns) == ["Label", "ClassID", "Class"]
     assert int(saved.loc[0, "Label"]) == 5
+
+
+def _click_like_napari_06(widget, z, y, x):
+    """Place a point the way napari 0.6.x's ``Points.add`` announces it.
+
+    That version reports ``data_indices`` as one index per *coordinate* of
+    the added point instead of one per added point, so a 3D click arrives as
+    ``(-3, -2, -1)``. The event is emitted by hand because the napari in the
+    test environment is a version that reports ``(-1,)``.
+    """
+    layer = widget._annotation_layer
+    with layer.events.data.blocker():
+        layer.data = np.append(np.asarray(layer.data), [[z, y, x]], axis=0)
+    layer.events.data(
+        value=layer.data,
+        action="added",
+        data_indices=tuple(np.arange(-3, 0)),
+        vertex_indices=((),),
+    )
+
+
+def test_second_nucleus_does_not_wipe_the_first_on_napari_06(widget):
+    """Misreported indices must never cost an annotation already placed."""
+    _click_like_napari_06(widget, 1, 3, 3)
+    assert _planes(widget._annotation_layer) == [0, 1, 2]
+
+    _click_like_napari_06(widget, 1, 15, 15)
+
+    layer = widget._annotation_layer
+    assert _planes(layer) == [0, 1, 1, 2]
+    seg = np.asarray(widget._segmentation_layer.data)
+    labels = sorted(
+        int(seg[tuple(int(round(c)) for c in point)])
+        for point in np.asarray(layer.data)
+    )
+    assert labels == sorted([*A_LABELS.values(), B_LABEL])
+
+
+@pytest.mark.parametrize(
+    "data_indices",
+    [(-1,), (-3, -2, -1), (0, 1, 2), (), None],
+    ids=["one-per-point", "one-per-axis", "all-points", "empty", "missing"],
+)
+def test_added_points_are_found_without_trusting_the_event(
+    widget, data_indices
+):
+    """Whatever the event claims, only the trailing point is new."""
+    _click_like_napari_06(widget, 1, 3, 3)
+    layer = widget._annotation_layer
+
+    with layer.events.data.blocker():
+        layer.data = np.append(np.asarray(layer.data), [[1, 15, 15]], axis=0)
+    kwargs = {} if data_indices is None else {"data_indices": data_indices}
+    layer.events.data(
+        value=layer.data, action="added", vertex_indices=((),), **kwargs
+    )
+
+    assert _planes(layer) == [0, 1, 1, 2]
+
+
+def test_background_click_only_drops_its_own_point(widget):
+    """A miss removes the dot it created, not the ones already placed."""
+    _click_like_napari_06(widget, 1, 3, 3)
+
+    _click_like_napari_06(widget, 0, 18, 2)
+
+    assert _planes(widget._annotation_layer) == [0, 1, 2]
