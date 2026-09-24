@@ -6,12 +6,9 @@ import pandas as pd
 import pytest
 import tifffile
 from napari.utils.colormaps.standardize_color import transform_color
+from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
+from napari_align_annotator.project import PanopticProject
 from qtpy.QtGui import QCloseEvent
-
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
-from napari_towbintools_annotator.project import PanopticProject
 
 N_FILES = 3
 
@@ -243,7 +240,7 @@ def test_saving_uses_the_reference_name(widget, tmp_path):
 
 
 def test_a_stale_background_write_never_wins(widget, monkeypatch):
-    from napari_towbintools_annotator import panoptic_annotator
+    from napari_align_annotator import panoptic_annotator
 
     pending = []
 

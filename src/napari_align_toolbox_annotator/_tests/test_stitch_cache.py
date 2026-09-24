@@ -2,11 +2,10 @@ import os
 
 import numpy as np
 import tifffile
-
-from napari_towbintools_annotator.stitching import build_instance_index
-from napari_towbintools_annotator.stitching import get_instance_index
-from napari_towbintools_annotator.stitching import load_cached_index
-from napari_towbintools_annotator.stitching import save_index_to_cache
+from napari_align_annotator.stitching import build_instance_index
+from napari_align_annotator.stitching import get_instance_index
+from napari_align_annotator.stitching import load_cached_index
+from napari_align_annotator.stitching import save_index_to_cache
 
 
 def _stack():

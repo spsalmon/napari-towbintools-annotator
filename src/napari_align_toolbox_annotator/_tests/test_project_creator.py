@@ -6,29 +6,20 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
+from napari_align_annotator.classification_annotator import (
+    ClassificationAnnotatorWidget,
+)
+from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
+from napari_align_annotator.project import ClassificationProject
+from napari_align_annotator.project import Project
+from napari_align_annotator.project_creator import ProjectCreatorWidget
+from napari_align_annotator.project_creator import alignAnnotatorWidget
+from napari_align_annotator.project_creator import convert_path_to_dir_name
+from napari_align_annotator.project_creator import create_annotator_widget
 from qtpy.QtWidgets import QFileDialog
 from qtpy.QtWidgets import QLabel
 from qtpy.QtWidgets import QListWidget
 from qtpy.QtWidgets import QMessageBox
-
-from napari_towbintools_annotator.classification_annotator import (
-    ClassificationAnnotatorWidget,
-)
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
-from napari_towbintools_annotator.project import ClassificationProject
-from napari_towbintools_annotator.project import Project
-from napari_towbintools_annotator.project_creator import ProjectCreatorWidget
-from napari_towbintools_annotator.project_creator import (
-    TowbintoolsAnnotatorWidget,
-)
-from napari_towbintools_annotator.project_creator import (
-    convert_path_to_dir_name,
-)
-from napari_towbintools_annotator.project_creator import (
-    create_annotator_widget,
-)
 
 # The creation back ends only use ``self`` for a staticmethod, so the class
 # stands in for a widget instance.
@@ -455,7 +446,7 @@ def test_other_project_types_cannot_be_saved_yet(tmp_path):
 
 @pytest.fixture
 def plugin(viewer):
-    return TowbintoolsAnnotatorWidget(viewer)
+    return alignAnnotatorWidget(viewer)
 
 
 def test_create_button_toggles_the_creator(plugin):

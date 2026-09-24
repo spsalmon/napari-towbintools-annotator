@@ -86,7 +86,7 @@ class ProjectCreationWorker(QThread):
             self.error.emit(str(e))
 
 
-class TowbintoolsAnnotatorWidget(QWidget):
+class alignAnnotatorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
         super().__init__(parent=parent)
 

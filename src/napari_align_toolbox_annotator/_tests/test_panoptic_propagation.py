@@ -4,11 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
-
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
-from napari_towbintools_annotator.project import PanopticProject
+from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
+from napari_align_annotator.project import PanopticProject
 
 # Nucleus A spans planes 0-2, labelled 1 / 5 / 2 (independent per plane).
 # Nucleus B sits alone on plane 1, labelled 9.

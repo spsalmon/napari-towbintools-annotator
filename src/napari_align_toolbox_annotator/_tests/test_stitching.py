@@ -1,8 +1,7 @@
 import numpy as np
-
-from napari_towbintools_annotator.stitching import build_instance_index
-from napari_towbintools_annotator.stitching import centroid_table
-from napari_towbintools_annotator.stitching import stitch_planes
+from napari_align_annotator.stitching import build_instance_index
+from napari_align_annotator.stitching import centroid_table
+from napari_align_annotator.stitching import stitch_planes
 
 
 def _block(masks, z, label, y0, y1, x0, x1):

@@ -1,23 +1,23 @@
-# napari-towbintools-annotator
+# napari-align-annotator
 
 A napari plugin providing project-based image annotation workflows for use with
-`towbintools_pipeline`. A *project* is a directory holding a `project.yaml`
+`align_pipeline`. A *project* is a directory holding a `project.yaml`
 descriptor plus a master annotation CSV; opening it launches the annotator
 widget matching its `project_type`.
 
 ## Environment
 
 **All Python commands — tests, linting, scratch scripts — must run in the
-`towbintools` micromamba environment.** Never use bare `python`/`pytest` (there
+`ALIGN` micromamba environment.** Never use bare `python`/`pytest` (there
 is no `python` on `PATH`), and do not use the `napari` env for this project.
 
 ```bash
-micromamba run -n towbintools python -m pytest src/napari_towbintools_annotator/_tests/ -q
+micromamba run -n align_pipeline python -m pytest src/napari_align_annotator/_tests/ -q
 ```
 
 The env already has napari 0.9 + PyQt6, `napari_guitils`, `natsort`, and this
 package installed editable (`pip install -e . --no-deps`). If an import goes
-missing, install it into `towbintools` rather than switching envs.
+missing, install it into `ALIGN` rather than switching envs.
 
 Run the full suite before claiming work is done, and paste the real output —
 never assert that tests pass without having seen them pass.
@@ -35,10 +35,10 @@ this is a deliberate choice for this project, not an oversight.
 ## Layout
 
 ```
-src/napari_towbintools_annotator/
+src/napari_align_annotator/
 ├── project.py               # Project (base), ClassificationProject, PanopticProject
 │                            #   — YAML load/save; Project.load dispatches on project_type
-├── project_creator.py       # TowbintoolsAnnotatorWidget (napari entry point),
+├── project_creator.py       # alignAnnotatorWidget (napari entry point),
 │                            #   ProjectCreatorWidget, scan_panoptic_files,
 │                            #   create_annotator_widget (project_type -> widget)
 ├── classification_annotator.py  # whole-image class annotation
@@ -48,7 +48,7 @@ src/napari_towbintools_annotator/
 ```
 
 The single napari contribution is
-`project_creator:TowbintoolsAnnotatorWidget` (see `napari.yaml`). New project
+`project_creator:ALIGNAnnotatorWidget` (see `napari.yaml`). New project
 types are reached through it — they do **not** add napari contributions.
 
 ### Adding a project type
@@ -66,7 +66,7 @@ types are reached through it — they do **not** add napari contributions.
   `nearest_class_id`, …) so they are testable without a live napari viewer.
   Widget classes should hold Qt/viewer state and delegate the real work.
 - **Annotation CSV columns are a public interface.** Downstream
-  `towbintools_pipeline` code reads them. Add columns additively; do not rename
+  `align_pipeline` code reads them. Add columns additively; do not rename
   or repurpose existing ones, and do not change what a `Label` value refers to
   (it indexes the segmentation file on disk).
 - Style: black + ruff, **line length 79**, target py310. `E501` is ignored —

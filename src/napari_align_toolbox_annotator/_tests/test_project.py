@@ -1,9 +1,8 @@
 import pytest
 import yaml
-
-from napari_towbintools_annotator.project import ClassificationProject
-from napari_towbintools_annotator.project import PanopticProject
-from napari_towbintools_annotator.project import Project
+from napari_align_annotator.project import ClassificationProject
+from napari_align_annotator.project import PanopticProject
+from napari_align_annotator.project import Project
 
 
 def _classification(tmp_path, **overrides):

@@ -71,7 +71,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment:
       name: pypi
-      url: https://pypi.org/p/napari-towbintools-annotator
+      url: https://pypi.org/p/napari-align-annotator
     permissions:
       id-token: write
     steps:

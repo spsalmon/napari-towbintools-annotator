@@ -2,14 +2,9 @@
 
 import numpy as np
 import pytest
-
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
-from napari_towbintools_annotator.panoptic_annotator import (
-    majority_class_colors,
-)
-from napari_towbintools_annotator.stitching import build_instance_index
+from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
+from napari_align_annotator.panoptic_annotator import majority_class_colors
+from napari_align_annotator.stitching import build_instance_index
 
 from .test_panoptic_propagation import _make_project
 

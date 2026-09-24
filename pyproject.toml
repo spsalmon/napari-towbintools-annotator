@@ -1,7 +1,7 @@
 [project]
-name = "napari-towbintools-annotator"
+name = "napari-align-annotator"
 dynamic = ["version"]
-description = "An annotator plugin to use with towbintools_pipeline"
+description = "An annotator plugin to use with align_pipeline"
 readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
@@ -50,13 +50,13 @@ all = [
 ]
 
 [project.entry-points."napari.manifest"]
-napari-towbintools-annotator = "napari_towbintools_annotator:napari.yaml"
+napari-align-annotator = "napari_align_annotator:napari.yaml"
 
 [project.urls]
-"Bug Tracker" = "https://github.com/spsalmon/napari-towbintools-annotator/issues"
-"Documentation" = "https://github.com/spsalmon/napari-towbintools-annotator#readme"
-"Source Code" = "https://github.com/spsalmon/napari-towbintools-annotator"
-"User Support" = "https://github.com/spsalmon/napari-towbintools-annotator/issues"
+"Bug Tracker" = "https://github.com/spsalmon/napari-align-annotator/issues"
+"Documentation" = "https://github.com/spsalmon/napari-align-annotator#readme"
+"Source Code" = "https://github.com/spsalmon/napari-align-annotator"
+"User Support" = "https://github.com/spsalmon/napari-align-annotator/issues"
 
 [build-system]
 requires = ["setuptools>=77.0.0", "setuptools-scm>=8"]
@@ -73,15 +73,15 @@ where = ["src"]
 
 
 [tool.pytest.ini_options]
-testpaths = ["src/napari_towbintools_annotator/_tests"]
+testpaths = ["src/napari_align_annotator/_tests"]
 
 [tool.coverage.run]
-source = ["napari_towbintools_annotator"]
+source = ["napari_align_annotator"]
 omit = ["*/_tests/*", "*/_version.py"]
 
 
 [tool.setuptools_scm]
-version_file = "src/napari_towbintools_annotator/_version.py"
+version_file = "src/napari_align_annotator/_version.py"
 fallback_version = "0.0.1+nogit"
 
 

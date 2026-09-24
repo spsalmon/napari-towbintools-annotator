@@ -8,13 +8,12 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
-from qtpy.QtGui import QCloseEvent
-
-from napari_towbintools_annotator.classification_annotator import (
+from napari_align_annotator.classification_annotator import (
     ClassificationAnnotatorWidget,
 )
-from napari_towbintools_annotator.colors import CLASS_PALETTE
-from napari_towbintools_annotator.project import ClassificationProject
+from napari_align_annotator.colors import CLASS_PALETTE
+from napari_align_annotator.project import ClassificationProject
+from qtpy.QtGui import QCloseEvent
 
 # Real acquisition file names: spaces and commas must survive the CSV.
 TEST_IMAGES = sorted((Path(__file__).parent / "test_images").glob("*.tiff"))[
@@ -339,7 +338,7 @@ class _DeferredThread:
 
 @pytest.fixture
 def deferred_writes(monkeypatch):
-    from napari_towbintools_annotator import classification_annotator
+    from napari_align_annotator import classification_annotator
 
     _DeferredThread.pending = []
     monkeypatch.setattr(

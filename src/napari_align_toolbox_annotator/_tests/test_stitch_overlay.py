@@ -2,12 +2,9 @@
 
 import numpy as np
 import pytest
-
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
-from napari_towbintools_annotator.stitching import build_instance_index
-from napari_towbintools_annotator.stitching import instance_volume
+from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
+from napari_align_annotator.stitching import build_instance_index
+from napari_align_annotator.stitching import instance_volume
 
 from .test_panoptic_propagation import _make_project
 

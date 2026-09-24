@@ -2,19 +2,16 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
-
-from napari_towbintools_annotator.colors import CLASS_PALETTE
-from napari_towbintools_annotator.colors import class_hex
-from napari_towbintools_annotator.colors import hex_to_rgba_float
-from napari_towbintools_annotator.panoptic_annotator import (
-    PanopticAnnotatorWidget,
-)
-from napari_towbintools_annotator.panoptic_annotator import nearest_class_id
-from napari_towbintools_annotator.panoptic_annotator import points_to_rows
-from napari_towbintools_annotator.panoptic_annotator import rows_to_points
-from napari_towbintools_annotator.project import PanopticProject
-from napari_towbintools_annotator.project import Project
-from napari_towbintools_annotator.project_creator import scan_panoptic_files
+from napari_align_annotator.colors import CLASS_PALETTE
+from napari_align_annotator.colors import class_hex
+from napari_align_annotator.colors import hex_to_rgba_float
+from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
+from napari_align_annotator.panoptic_annotator import nearest_class_id
+from napari_align_annotator.panoptic_annotator import points_to_rows
+from napari_align_annotator.panoptic_annotator import rows_to_points
+from napari_align_annotator.project import PanopticProject
+from napari_align_annotator.project import Project
+from napari_align_annotator.project_creator import scan_panoptic_files
 
 
 def test_hex_to_rgba_float_white():
@@ -277,9 +274,7 @@ def test_scan_panoptic_files_mismatch_raises(tmp_path):
 
 
 def test_run_panoptic_creation_copies_segmentations(tmp_path):
-    from napari_towbintools_annotator.project_creator import (
-        ProjectCreatorWidget,
-    )
+    from napari_align_annotator.project_creator import ProjectCreatorWidget
 
     src_ref = tmp_path / "src_ref"
     src_seg = tmp_path / "src_seg"
@@ -316,9 +311,7 @@ def test_run_panoptic_creation_copies_segmentations(tmp_path):
 
 
 def test_run_panoptic_creation_persists_stitch_threshold(tmp_path):
-    from napari_towbintools_annotator.project_creator import (
-        ProjectCreatorWidget,
-    )
+    from napari_align_annotator.project_creator import ProjectCreatorWidget
 
     src_ref = tmp_path / "src_ref"
     src_seg = tmp_path / "src_seg"
@@ -350,9 +343,7 @@ def test_run_panoptic_creation_persists_stitch_threshold(tmp_path):
 
 
 def test_creator_shows_stitch_threshold_only_for_panoptic(viewer):
-    from napari_towbintools_annotator.project_creator import (
-        ProjectCreatorWidget,
-    )
+    from napari_align_annotator.project_creator import ProjectCreatorWidget
 
     widget = ProjectCreatorWidget(viewer)
 

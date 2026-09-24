@@ -1,0 +1,15 @@
+name: napari-align-annotator
+display_name: ALIGN Annotator
+# use 'hidden' to remove plugin from napari hub search results
+visibility: public
+# see https://napari.org/stable/plugins/technical_references/manifest.html#fields for valid categories
+categories: ["Annotation", "Segmentation"]
+contributions:
+  commands:
+    - id: napari-align-annotator.project_creator
+      title: ALIGN Annotator
+      python_name: napari_align_annotator.project_creator:alignAnnotatorWidget
+
+  widgets:
+    - command: napari-align-annotator.project_creator
+      display_name: ALIGN Annotator
