@@ -228,8 +228,10 @@ class ProjectCreatorWidget(QWidget):
         self.project_type_classification.setToolTip(
             "Classification project (e.g., image classification)"
         )
+        self.project_type_keypoint.setEnabled(False)
         self.project_type_keypoint.setToolTip(
-            "Keypoint project (e.g., keypoint detection)"
+            "Keypoint project (e.g., keypoint detection) — not implemented "
+            "yet"
         )
         self.project_type_panoptic.setToolTip(
             "Panoptic project (e.g., panoptic segmentation)"

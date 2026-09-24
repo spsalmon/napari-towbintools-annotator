@@ -222,13 +222,15 @@ def test_display_mode_picks_the_directory_selectors(
     )
 
 
-def test_keypoint_projects_hide_classes_and_masks(creator):
+def test_keypoint_projects_cannot_be_selected(creator):
+    # Keypoint annotation is not implemented yet: the option is greyed out
+    # so a user cannot create a project that could never be reopened.
+    assert not creator.project_type_keypoint.isEnabled()
+
     creator.project_type_keypoint.click()
 
-    assert not creator.classification_options_layout.gbox.isVisibleTo(creator)
-    assert not creator.display_mode_group.gbox.isVisibleTo(creator)
-    assert not creator.mask_dir_selector_widget.isVisibleTo(creator)
-    assert creator.data_selection_widget.isVisibleTo(creator)
+    assert not creator.project_type_keypoint.isChecked()
+    assert creator._get_selected_project_type() == "classification"
 
 
 def test_panoptic_projects_need_both_directories(creator):
