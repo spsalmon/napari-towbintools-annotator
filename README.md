@@ -2,7 +2,7 @@
 
 [![License BSD-3](https://img.shields.io/github/license/spsalmon/napari-align-annotator?color=green)](https://github.com/spsalmon/napari-align-annotator/blob/main/LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
-[![tests](https://github.com/spsalmon/napari-align-annotator/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)](https://github.com/spsalmon/napari-align-annotator/actions/workflows/test_and_deploy.yml)
+[![tests](https://github.com/spsalmon/napari-align-annotator/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/spsalmon/napari-align-annotator/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/spsalmon/napari-align-annotator/branch/main/graph/badge.svg)](https://codecov.io/gh/spsalmon/napari-align-annotator)
 [![npe2](https://img.shields.io/badge/plugin-npe2-blue?link=https://napari.org/stable/plugins/index.html)](https://napari.org/stable/plugins/index.html)
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-purple.json)](https://github.com/copier-org/copier)
