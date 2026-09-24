@@ -1,5 +1,6 @@
 import pytest
 import yaml
+
 from napari_align_annotator.project import ClassificationProject
 from napari_align_annotator.project import PanopticProject
 from napari_align_annotator.project import Project

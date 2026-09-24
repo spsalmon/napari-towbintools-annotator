@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
+
 from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
 from napari_align_annotator.project import PanopticProject
 

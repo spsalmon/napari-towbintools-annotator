@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import tifffile
+
 from napari_align_annotator.stitching import build_instance_index
 from napari_align_annotator.stitching import get_instance_index
 from napari_align_annotator.stitching import load_cached_index

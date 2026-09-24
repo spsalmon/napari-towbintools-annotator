@@ -86,7 +86,7 @@ class ProjectCreationWorker(QThread):
             self.error.emit(str(e))
 
 
-class alignAnnotatorWidget(QWidget):
+class ALIGNAnnotatorWidget(QWidget):
     def __init__(self, napari_viewer, parent=None):
         super().__init__(parent=parent)
 

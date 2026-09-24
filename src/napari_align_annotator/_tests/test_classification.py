@@ -8,12 +8,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
+from qtpy.QtGui import QCloseEvent
+
 from napari_align_annotator.classification_annotator import (
     ClassificationAnnotatorWidget,
 )
 from napari_align_annotator.colors import CLASS_PALETTE
 from napari_align_annotator.project import ClassificationProject
-from qtpy.QtGui import QCloseEvent
 
 # Real acquisition file names: spaces and commas must survive the CSV.
 TEST_IMAGES = sorted((Path(__file__).parent / "test_images").glob("*.tiff"))[

@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+
 from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
 from napari_align_annotator.stitching import build_instance_index
 from napari_align_annotator.stitching import instance_volume

@@ -38,7 +38,7 @@ this is a deliberate choice for this project, not an oversight.
 src/napari_align_annotator/
 ├── project.py               # Project (base), ClassificationProject, PanopticProject
 │                            #   — YAML load/save; Project.load dispatches on project_type
-├── project_creator.py       # alignAnnotatorWidget (napari entry point),
+├── project_creator.py       # ALIGNAnnotatorWidget (napari entry point),
 │                            #   ProjectCreatorWidget, scan_panoptic_files,
 │                            #   create_annotator_widget (project_type -> widget)
 ├── classification_annotator.py  # whole-image class annotation

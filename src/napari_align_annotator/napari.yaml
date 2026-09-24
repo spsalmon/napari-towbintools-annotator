@@ -8,7 +8,7 @@ contributions:
   commands:
     - id: napari-align-annotator.project_creator
       title: ALIGN Annotator
-      python_name: napari_align_annotator.project_creator:alignAnnotatorWidget
+      python_name: napari_align_annotator.project_creator:ALIGNAnnotatorWidget
 
   widgets:
     - command: napari-align-annotator.project_creator

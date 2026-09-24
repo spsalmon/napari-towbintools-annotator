@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
+
 from napari_align_annotator.colors import CLASS_PALETTE
 from napari_align_annotator.colors import class_hex
 from napari_align_annotator.colors import hex_to_rgba_float

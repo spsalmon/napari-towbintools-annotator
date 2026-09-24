@@ -6,9 +6,10 @@ import pandas as pd
 import pytest
 import tifffile
 from napari.utils.colormaps.standardize_color import transform_color
+from qtpy.QtGui import QCloseEvent
+
 from napari_align_annotator.panoptic_annotator import PanopticAnnotatorWidget
 from napari_align_annotator.project import PanopticProject
-from qtpy.QtGui import QCloseEvent
 
 N_FILES = 3
 
