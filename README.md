@@ -1,14 +1,14 @@
-# napari-towbintools-annotator
+# napari-align-annotator
 
-[![License BSD-3](https://img.shields.io/github/license/spsalmon/napari-towbintools-annotator?color=green)](https://github.com/spsalmon/napari-towbintools-annotator/blob/main/LICENSE)
+[![License BSD-3](https://img.shields.io/github/license/spsalmon/napari-align-annotator?color=green)](https://github.com/spsalmon/napari-align-annotator/blob/main/LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
-[![tests](https://github.com/spsalmon/napari-towbintools-annotator/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)](https://github.com/spsalmon/napari-towbintools-annotator/actions/workflows/test_and_deploy.yml)
-[![codecov](https://codecov.io/gh/spsalmon/napari-towbintools-annotator/branch/main/graph/badge.svg)](https://codecov.io/gh/spsalmon/napari-towbintools-annotator)
+[![tests](https://github.com/spsalmon/napari-align-annotator/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)](https://github.com/spsalmon/napari-align-annotator/actions/workflows/test_and_deploy.yml)
+[![codecov](https://codecov.io/gh/spsalmon/napari-align-annotator/branch/main/graph/badge.svg)](https://codecov.io/gh/spsalmon/napari-align-annotator)
 [![npe2](https://img.shields.io/badge/plugin-npe2-blue?link=https://napari.org/stable/plugins/index.html)](https://napari.org/stable/plugins/index.html)
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-purple.json)](https://github.com/copier-org/copier)
 
 A [napari] plugin for building annotated datasets for
-[towbintools_pipeline](https://github.com/spsalmon/towbintools_pipeline).
+[ALIGN](https://github.com/spsalmon/align_pipeline).
 Annotation work is organised into *projects*: a directory holding a
 `project.yaml` descriptor and a master annotation CSV, so a session can be
 closed and resumed at any time.
@@ -19,23 +19,23 @@ closed and resumed at any time.
 
 Install the plugin into an environment that has napari and a Qt binding:
 
-    pip install napari-towbintools-annotator
+    pip install napari-align-annotator
 
 or, to get napari and PyQt together:
 
-    pip install "napari-towbintools-annotator[all]"
+    pip install "napari-align-annotator[all]"
 
 The plugin can also be installed from napari's plugin manager
 (`Plugins > Install/Uninstall Plugins...`).
 
 To install the latest development version:
 
-    pip install git+https://github.com/spsalmon/napari-towbintools-annotator.git
+    pip install git+https://github.com/spsalmon/napari-align-annotator.git
 
 ## Usage
 
 Open napari and start the widget from
-`Plugins > Towbintools Annotator`. From there you can either
+`Plugins > ALIGN Annotator`. From there you can either
 **Create Project** or **Load Project** (pick a directory containing a
 `project.yaml`).
 
@@ -83,7 +83,7 @@ least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [BSD-3] license,
-"napari-towbintools-annotator" is free and open source software.
+"napari-align-annotator" is free and open source software.
 
 ## Issues
 
@@ -97,5 +97,5 @@ This [napari] plugin was generated with [copier] using the
 [copier]: https://copier.readthedocs.io/en/stable/
 [BSD-3]: http://opensource.org/licenses/BSD-3-Clause
 [napari-plugin-template]: https://github.com/napari/napari-plugin-template
-[file an issue]: https://github.com/spsalmon/napari-towbintools-annotator/issues
+[file an issue]: https://github.com/spsalmon/napari-align-annotator/issues
 [tox]: https://tox.readthedocs.io/en/latest/
